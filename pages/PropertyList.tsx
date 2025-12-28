@@ -9,6 +9,7 @@ type SortDirection = 'asc' | 'desc';
 
 export const PropertyList: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -17,14 +18,25 @@ export const PropertyList: React.FC = () => {
   }, []);
 
   const loadProperties = async () => {
+    // 1. Instant load from cache
+    const cached = storageService.getCachedProperties();
+    if (cached.length > 0) {
+      setProperties(cached);
+      setLoading(false); // If we have cache, we are not "loading" visually
+    }
+
+    // 2. Fetch fresh data from DB
     const data = await storageService.getProperties();
     setProperties(data);
+    setLoading(false);
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este imóvel?')) {
+      // Optimistic update
+      setProperties(prev => prev.filter(p => p.id !== id));
       await storageService.deleteProperty(id);
-      loadProperties();
+      loadProperties(); // Re-sync to be safe
     }
   };
 
@@ -35,7 +47,8 @@ export const PropertyList: React.FC = () => {
   const handlePreview = async (e: React.MouseEvent) => {
     e.preventDefault();
     const currentProfile = await storageService.getProfile();
-    const rawProperties = await storageService.getProperties();
+    // Use current state properties if available, or fetch
+    const rawProperties = properties.length > 0 ? properties : await storageService.getProperties();
 
     // Serialize data for injection into the generated HTML
     const profileJson = JSON.stringify(currentProfile);
@@ -218,27 +231,6 @@ export const PropertyList: React.FC = () => {
                           </button>
                       </div>
                   </div>
-              </div>
-          </div>
-      </div>
-  </div>
-
-  <div id="calc-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div class="bg-slate-800 rounded-2xl p-6 max-w-sm w-full border border-white/10 relative">
-          <button onclick="closeCalcModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-          <h3 class="text-xl font-bold text-white mb-4">Simulador SAC</h3>
-          <div class="space-y-4">
-              <div><label class="text-xs text-gray-400 uppercase">Valor</label><input type="number" id="calc-valor" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none" readonly></div>
-              <div><label class="text-xs text-gray-400 uppercase">Entrada (R$)</label><input type="number" id="calc-entrada" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none"></div>
-              <div class="grid grid-cols-2 gap-4">
-                  <div><label class="text-xs text-gray-400 uppercase">Prazo</label><select id="calc-anos" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none"><option value="35">35 anos</option><option value="30">30 anos</option></select></div>
-                  <div><label class="text-xs text-gray-400 uppercase">Juros %</label><input type="number" id="calc-taxa" value="10.5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none"></div>
-              </div>
-              <button onclick="calculateSAC()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition">Calcular</button>
-              <div id="calc-result" class="hidden mt-4 space-y-3 p-4 bg-slate-900 rounded-lg border border-green-500/30">
-                  <div><p class="text-gray-400 text-xs uppercase">1ª Parcela (Estimada)</p><p class="text-3xl font-bold text-green-400" id="res-parcela">R$ 0,00</p></div>
-                  <div class="bg-blue-900/30 p-2 rounded border border-blue-500/30"><p class="text-blue-200 text-[10px] uppercase">Renda Familiar Sugerida (30%)</p><p class="text-white font-bold text-sm" id="res-renda">R$ 0,00</p></div>
-                  <a id="link-aprovar" href="#" target="_blank" class="block w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded text-center text-xs mt-2">🏠 Aprovar Crédito</a>
               </div>
           </div>
       </div>
@@ -587,7 +579,7 @@ export const PropertyList: React.FC = () => {
         </div>
       </div>
 
-      {properties.length > 0 && (
+      {(properties.length > 0 || loading) && (
         <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2 flex items-center gap-2">
             <ArrowUpDown size={16} />
@@ -616,7 +608,24 @@ export const PropertyList: React.FC = () => {
         </div>
       )}
 
-      {properties.length === 0 ? (
+      {loading && properties.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+           {[1,2,3,4,5,6].map(i => (
+             <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col h-[400px]">
+                <div className="h-48 bg-gray-200 dark:bg-gray-700 animate-pulse w-full"></div>
+                <div className="p-5 flex-1 flex flex-col space-y-4">
+                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
+                   <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div>
+                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+                   <div className="mt-auto flex gap-3 pt-4">
+                      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded flex-1 animate-pulse"></div>
+                      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-12 animate-pulse"></div>
+                   </div>
+                </div>
+             </div>
+           ))}
+        </div>
+      ) : properties.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-12 text-center transition-colors">
           <div className="w-16 h-16 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <MapPin className="text-gray-400 dark:text-gray-500" size={32} />
@@ -638,6 +647,8 @@ export const PropertyList: React.FC = () => {
                 <img 
                   src={property.media[0]?.url || 'https://via.placeholder.com/400x300?text=Sem+Imagem'} 
                   alt={property.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-3 right-3 flex gap-2">

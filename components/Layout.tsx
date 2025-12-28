@@ -51,6 +51,16 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .trim()
+      .split(' ')
+      .map(part => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
+
   const handlePreview = async (e: React.MouseEvent) => {
     e.preventDefault();
     const currentProfile = await storageService.getProfile();
@@ -237,27 +247,6 @@ export const Layout: React.FC = () => {
                           </button>
                       </div>
                   </div>
-              </div>
-          </div>
-      </div>
-  </div>
-
-  <div id="calc-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div class="bg-slate-800 rounded-2xl p-6 max-w-sm w-full border border-white/10 relative">
-          <button onclick="closeCalcModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-          <h3 class="text-xl font-bold text-white mb-4">Simulador SAC</h3>
-          <div class="space-y-4">
-              <div><label class="text-xs text-gray-400 uppercase">Valor</label><input type="number" id="calc-valor" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none" readonly></div>
-              <div><label class="text-xs text-gray-400 uppercase">Entrada (R$)</label><input type="number" id="calc-entrada" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none"></div>
-              <div class="grid grid-cols-2 gap-4">
-                  <div><label class="text-xs text-gray-400 uppercase">Prazo</label><select id="calc-anos" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none"><option value="35">35 anos</option><option value="30">30 anos</option></select></div>
-                  <div><label class="text-xs text-gray-400 uppercase">Juros %</label><input type="number" id="calc-taxa" value="10.5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none"></div>
-              </div>
-              <button onclick="calculateSAC()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition">Calcular</button>
-              <div id="calc-result" class="hidden mt-4 space-y-3 p-4 bg-slate-900 rounded-lg border border-green-500/30">
-                  <div><p class="text-gray-400 text-xs uppercase">1ª Parcela (Estimada)</p><p class="text-3xl font-bold text-green-400" id="res-parcela">R$ 0,00</p></div>
-                  <div class="bg-blue-900/30 p-2 rounded border border-blue-500/30"><p class="text-blue-200 text-[10px] uppercase">Renda Familiar Sugerida (30%)</p><p class="text-white font-bold text-sm" id="res-renda">R$ 0,00</p></div>
-                  <a id="link-aprovar" href="#" target="_blank" class="block w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded text-center text-xs mt-2">🏠 Aprovar Crédito</a>
               </div>
           </div>
       </div>
@@ -577,11 +566,17 @@ export const Layout: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row font-sans transition-colors duration-200">
       {/* Mobile Header */}
       <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            LE
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-600 overflow-hidden flex-shrink-0 bg-brand-600">
+            {profile.photoUrl ? (
+              <img src={profile.photoUrl} alt="Perfil" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                {getInitials(profile.name)}
+              </div>
+            )}
           </div>
-          <span className="font-bold text-gray-800 dark:text-white">Luxe Admin</span>
+          <span className="font-bold text-gray-800 dark:text-white truncate max-w-[150px]">{profile.name}</span>
         </div>
         <div className="flex items-center gap-4">
            <button onClick={toggleTheme} className="text-gray-500 dark:text-gray-400">
@@ -599,35 +594,14 @@ export const Layout: React.FC = () => {
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="p-6 border-b border-gray-100 dark:border-gray-700 hidden md:flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold shadow-sm">
               LE
             </div>
-            <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight">Luxe</span>
-          </div>
-          <button 
-            onClick={toggleTheme} 
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-            title={isDarkMode ? "Mudar para modo claro" : "Mudar para modo escuro"}
-          >
-             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+            <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight">Luxe Admin</span>
         </div>
 
-        <div className="p-4 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-          <img 
-            src={profile.photoUrl || 'https://via.placeholder.com/150'} 
-            alt={profile.name} 
-            className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-          />
-          <div className="overflow-hidden">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile.name}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{profile.creci}</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto mt-4">
           <NavItem to="/" icon={LayoutDashboard} label="Imóveis" end />
           <NavItem to="/properties/new" icon={PlusCircle} label="Novo Imóvel" />
           <NavItem to="/profile" icon={UserCircle} label="Meu Perfil" />
@@ -653,13 +627,51 @@ export const Layout: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
-           <Outlet />
-        </div>
-      </main>
+      {/* Main Wrapper */}
+      <div className="flex-1 flex flex-col min-h-screen">
+          {/* Desktop Top Bar */}
+          <header className="hidden md:flex items-center justify-between px-8 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+             <div className="flex items-center gap-4">
+                 <h2 className="text-xl font-bold text-gray-800 dark:text-white">Painel Administrativo</h2>
+             </div>
+             
+             <div className="flex items-center gap-6">
+                 <button 
+                    onClick={toggleTheme} 
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                    title={isDarkMode ? "Mudar para modo claro" : "Mudar para modo escuro"}
+                 >
+                     {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                 </button>
+                 
+                 <div className="h-8 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
 
+                 <div className="flex items-center gap-3">
+                     <div className="text-right">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">{profile.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{profile.creci}</p>
+                     </div>
+                     <div className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-700">
+                        {profile.photoUrl ? (
+                          <img src={profile.photoUrl} alt={profile.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-brand-600 flex items-center justify-center text-white font-bold text-sm">
+                            {getInitials(profile.name)}
+                          </div>
+                        )}
+                     </div>
+                 </div>
+             </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 overflow-x-hidden bg-gray-50 dark:bg-gray-900">
+            <div className="max-w-7xl mx-auto p-4 md:p-8">
+               <Outlet />
+            </div>
+          </main>
+      </div>
+      
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div 

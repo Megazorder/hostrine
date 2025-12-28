@@ -4,9 +4,18 @@ import { AdminProfile, Property, PropertyStatus } from '../types';
 const DEFAULT_PROFILE: AdminProfile = {
   name: 'Seu Nome',
   creci: '00000',
-  photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+  photoUrl: '', // Changed from Unsplash URL to empty string to show initials by default
   whatsapp: '5511999999999',
   headerMessage: 'Olá, gostaria de saber mais sobre imóveis de alto padrão.'
+};
+
+const CACHE_KEY = 'luxe_user_cache';
+const PROPERTIES_CACHE_KEY = 'luxe_properties_cache';
+
+const updateLocalCache = (name: string, photoUrl: string) => {
+  if (name && name !== 'Seu Nome') {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ name, photoUrl }));
+  }
 };
 
 export const storageService = {
@@ -32,6 +41,9 @@ export const storageService = {
     }
 
     if (!data) return { ...DEFAULT_PROFILE, name: user.user_metadata.name || 'Admin' };
+
+    // Update cache for Login screen
+    updateLocalCache(data.name, data.photo_url);
 
     return {
       name: data.name || user.user_metadata.name || 'Admin',
@@ -64,6 +76,19 @@ export const storageService = {
       console.error('Error saving profile:', JSON.stringify(error, null, 2));
       throw new Error(`Erro ao salvar perfil: ${error.message}`);
     }
+
+    // Update cache immediately on save
+    updateLocalCache(profile.name, profile.photoUrl);
+  },
+
+  // Synchronous method to get cached properties instantly
+  getCachedProperties: (): Property[] => {
+    try {
+      const cached = localStorage.getItem(PROPERTIES_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
   },
 
   getProperties: async (): Promise<Property[]> => {
@@ -82,7 +107,7 @@ export const storageService = {
     }
 
     // Map DB snake_case to TS camelCase
-    return data.map((p: any) => ({
+    const mappedProperties = data.map((p: any) => ({
       id: p.id,
       title: p.title || '',
       price: Number(p.price) || 0,
@@ -107,6 +132,11 @@ export const storageService = {
       viewersMax: Number(p.viewers_max) || 0,
       createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now()
     }));
+
+    // Update Cache
+    localStorage.setItem(PROPERTIES_CACHE_KEY, JSON.stringify(mappedProperties));
+
+    return mappedProperties;
   },
 
   getPropertyById: async (id: string): Promise<Property | undefined> => {
@@ -203,6 +233,9 @@ export const storageService = {
       console.error('Error saving property:', JSON.stringify(error, null, 2));
       throw new Error(`Erro ao salvar imóvel: ${error.message}`);
     }
+
+    // Invalidate/Update Cache Locally to avoid full refetch delay if possible, 
+    // but simplest is to just let the next fetch update it.
   },
 
   deleteProperty: async (id: string): Promise<void> => {

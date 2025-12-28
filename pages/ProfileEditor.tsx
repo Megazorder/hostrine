@@ -45,6 +45,16 @@ export const ProfileEditor: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .trim()
+      .split(' ')
+      .map(part => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (profile) {
@@ -88,11 +98,20 @@ export const ProfileEditor: React.FC = () => {
         {/* Photo Preview */}
         <div className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
            <div className="relative group cursor-pointer" onClick={triggerFileInput}>
-             <img 
-               src={profile.photoUrl || 'https://via.placeholder.com/150'} 
-               alt="Preview" 
-               className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md mb-4 transition-transform group-hover:scale-105"
-             />
+             <div className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 shadow-md mb-4 transition-transform group-hover:scale-105 overflow-hidden bg-white dark:bg-gray-700">
+                {profile.photoUrl ? (
+                  <img 
+                    src={profile.photoUrl} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-brand-600 flex items-center justify-center text-white font-bold text-3xl">
+                    {getInitials(profile.name)}
+                  </div>
+                )}
+             </div>
+             
              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity mb-4">
                <Upload className="text-white" size={24} />
              </div>
@@ -115,7 +134,7 @@ export const ProfileEditor: React.FC = () => {
            </button>
 
            <div className="w-full">
-             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">Ou cole a URL da imagem</label>
+             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">Ou cole a URL da imagem (Deixe vazio para iniciais)</label>
              <input 
                 name="photoUrl" 
                 value={profile.photoUrl} 

@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Loader2, ArrowRight, User } from 'lucide-react';
 import { authService } from '../services/auth';
 import { storageService } from '../services/storage';
+
+interface CachedUser {
+  name: string;
+  photoUrl: string;
+}
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +18,30 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cachedUser, setCachedUser] = useState<CachedUser | null>(null);
+
+  useEffect(() => {
+    // Attempt to load cached user info for the "Logo" spot
+    const stored = localStorage.getItem('luxe_user_cache');
+    if (stored) {
+      try {
+        setCachedUser(JSON.parse(stored));
+      } catch (e) {
+        // ignore invalid cache
+      }
+    }
+  }, []);
+
+  const getInitials = (name: string) => {
+    if (!name) return 'LE';
+    return name
+      .trim()
+      .split(' ')
+      .map(part => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +55,9 @@ export const Login: React.FC = () => {
         success = await authService.login(email, password);
         if (!success) {
           setError('Credenciais inválidas. Tente novamente.');
+        } else {
+          // Trigger a profile fetch to update cache immediately on login
+          await storageService.getProfile();
         }
       } else {
         if (name.length < 3) {
@@ -66,10 +98,26 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
         
         <div className="pt-10 px-8 text-center">
-          <div className="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg shadow-brand-900/50">
-            LE
+          {/* Avatar / Logo Section */}
+          <div className="w-24 h-24 mx-auto mb-6 shadow-2xl shadow-brand-900/50 rounded-full p-1 bg-gradient-to-tr from-brand-600 to-brand-400">
+             <div className="w-full h-full rounded-full bg-gray-800 overflow-hidden flex items-center justify-center border-2 border-gray-800">
+               {cachedUser?.photoUrl ? (
+                 <img 
+                   src={cachedUser.photoUrl} 
+                   alt={cachedUser.name} 
+                   className="w-full h-full object-cover"
+                 />
+               ) : (
+                 <span className="text-white font-bold text-3xl tracking-wider">
+                   {cachedUser ? getInitials(cachedUser.name) : 'LE'}
+                 </span>
+               )}
+             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Luxe Admin</h1>
+
+          <h1 className="text-3xl font-bold text-white tracking-tight">
+            {cachedUser && isLogin ? cachedUser.name : 'Luxe Admin'}
+          </h1>
           <p className="text-gray-400 text-sm mt-2">
             {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta administrativa'}
           </p>

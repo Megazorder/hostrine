@@ -36,7 +36,7 @@ export const authService = {
           name: name,
           creci: '',
           whatsapp: '',
-          photo_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+          photo_url: '', // Empty string to trigger initials view
           header_message: 'Olá, gostaria de saber mais sobre imóveis.'
         }
       ]);
