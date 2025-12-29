@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Save, User, Smartphone, BadgeCheck, MessageSquare, Loader2, Upload, AlertCircle } from 'lucide-react';
+import { Save, User, Smartphone, BadgeCheck, MessageSquare, Loader2, Upload } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { AdminProfile } from '../types';
 
@@ -7,19 +7,10 @@ export const ProfileEditor: React.FC = () => {
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const load = async () => {
-        try {
-            const data = await storageService.getProfile();
-            setProfile(data);
-        } catch (err) {
-            setError('Erro ao carregar perfil.');
-        }
-    };
-    load();
+    setProfile(storageService.getProfile());
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -45,32 +36,16 @@ export const ProfileEditor: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .trim()
-      .split(' ')
-      .map(part => part[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (profile) {
       setLoading(true);
-      setError(null);
-      setSuccess(false);
-      
-      try {
-        await storageService.saveProfile(profile);
+      setTimeout(() => {
+        storageService.saveProfile(profile);
+        setLoading(false);
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
-      } catch (err: any) {
-        setError(err.message || 'Erro ao salvar perfil.');
-      } finally {
-        setLoading(false);
-      }
+      }, 500);
     }
   };
 
@@ -86,32 +61,16 @@ export const ProfileEditor: React.FC = () => {
         <p className="text-gray-500 dark:text-gray-400">Gerencie as informações que aparecem no topo do site.</p>
       </div>
 
-      {error && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-4 rounded-lg flex items-center gap-3">
-          <AlertCircle size={20} />
-          <span>{error}</span>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-6 transition-colors">
         
         {/* Photo Preview */}
         <div className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
            <div className="relative group cursor-pointer" onClick={triggerFileInput}>
-             <div className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 shadow-md mb-4 transition-transform group-hover:scale-105 overflow-hidden bg-white dark:bg-gray-700">
-                {profile.photoUrl ? (
-                  <img 
-                    src={profile.photoUrl} 
-                    alt="Preview" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-brand-600 flex items-center justify-center text-white font-bold text-3xl">
-                    {getInitials(profile.name)}
-                  </div>
-                )}
-             </div>
-             
+             <img 
+               src={profile.photoUrl || 'https://via.placeholder.com/150'} 
+               alt="Preview" 
+               className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md mb-4 transition-transform group-hover:scale-105"
+             />
              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity mb-4">
                <Upload className="text-white" size={24} />
              </div>
@@ -134,7 +93,7 @@ export const ProfileEditor: React.FC = () => {
            </button>
 
            <div className="w-full">
-             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">Ou cole a URL da imagem (Deixe vazio para iniciais)</label>
+             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">Ou cole a URL da imagem</label>
              <input 
                 name="photoUrl" 
                 value={profile.photoUrl} 

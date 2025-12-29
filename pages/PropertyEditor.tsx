@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, Wand2, CheckCircle2, Trash2, AlertCircle } from 'lucide-react';
+import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, Wand2, CheckCircle2, Trash2 } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus, MediaItem } from '../types';
 
@@ -43,8 +43,6 @@ export const PropertyEditor: React.FC = () => {
   const [newFeature, setNewFeature] = useState('');
   const [newMediaUrl, setNewMediaUrl] = useState('');
   const [newMediaType, setNewMediaType] = useState<'image' | 'video'>('image');
-  const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Media Upload States
   const [isDragging, setIsDragging] = useState(false);
@@ -53,21 +51,14 @@ export const PropertyEditor: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
   useEffect(() => {
-    const loadProperty = async () => {
-      if (id) {
-        try {
-          const existing = await storageService.getPropertyById(id);
-          if (existing) {
-            setFormData(existing);
-          } else {
-            navigate('/');
-          }
-        } catch (err) {
-          setError('Erro ao carregar imóvel.');
-        }
+    if (id) {
+      const existing = storageService.getPropertyById(id);
+      if (existing) {
+        setFormData(existing);
+      } else {
+        navigate('/');
       }
-    };
-    loadProperty();
+    }
   }, [id, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -130,7 +121,11 @@ export const PropertyEditor: React.FC = () => {
     setIsDragging(false);
   };
 
-  const processFiles = async (files: File[]) => {
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -150,6 +145,7 @@ export const PropertyEditor: React.FC = () => {
             }
             processed++;
             setUploadProgress(Math.round((processed / total) * 100));
+            // Simulate network delay for effect
             setTimeout(resolve, 300);
           };
           reader.readAsDataURL(file);
@@ -163,22 +159,6 @@ export const PropertyEditor: React.FC = () => {
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2000);
     }, 500);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files: File[] = Array.from(e.dataTransfer.files);
-    await processFiles(files);
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files: File[] = Array.from(e.target.files);
-      await processFiles(files);
-      // Reset input so same file can be selected again if needed
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
   };
 
   const generatePlaceholders = () => {
@@ -202,26 +182,22 @@ export const PropertyEditor: React.FC = () => {
     }, 200);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
     
-    const payload: Property = {
-      ...formData,
-      // If we have an ID, keep it, otherwise let Supabase generate (or handle empty ID in service)
-      id: id || formData.id, 
-      createdAt: formData.createdAt || Date.now()
-    };
-    
-    try {
-      await storageService.saveProperty(payload);
+    // Simulate API delay
+    setTimeout(() => {
+      const payload: Property = {
+        ...formData,
+        id: id || Math.random().toString(36).substr(2, 9),
+        createdAt: formData.createdAt || Date.now()
+      };
+      
+      storageService.saveProperty(payload);
       setLoading(false);
       navigate('/');
-    } catch (err: any) {
-      setLoading(false);
-      setError(err.message || 'Ocorreu um erro ao salvar o imóvel.');
-    }
+    }, 800);
   };
 
   const inputClass = "w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors";
@@ -240,13 +216,6 @@ export const PropertyEditor: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400 text-sm">Preencha as informações abaixo para publicar no site.</p>
         </div>
       </div>
-
-      {error && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-4 rounded-lg flex items-center gap-3">
-          <AlertCircle size={20} />
-          <span>{error}</span>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Basic Info */}
@@ -371,14 +340,13 @@ export const PropertyEditor: React.FC = () => {
             </button>
           </div>
           
-          {/* Enhanced Drag and Drop Zone / Mobile Click Zone */}
+          {/* Drag and Drop Zone */}
           <div 
-            onClick={() => fileInputRef.current?.click()}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={`
-              relative mb-6 border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out text-center cursor-pointer group select-none
+              relative mb-6 border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out text-center cursor-pointer group
               ${isDragging 
                 ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' 
                 : uploadSuccess 
@@ -387,15 +355,6 @@ export const PropertyEditor: React.FC = () => {
               }
             `}
           >
-            <input 
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-
             {isUploading ? (
               <div className="flex flex-col items-center justify-center py-4">
                 <Loader2 size={40} className="text-brand-600 animate-spin mb-3" />
@@ -421,17 +380,9 @@ export const PropertyEditor: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                   <UploadCloud size={24} />
                 </div>
-                <h3 className="text-gray-900 dark:text-white font-medium mb-1">Toque para selecionar ou arraste arquivos</h3>
+                <h3 className="text-gray-900 dark:text-white font-medium mb-1">Arraste e solte arquivos aqui</h3>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Suporta imagens (JPG, PNG) e vídeos (MP4)</p>
-                
-                <button 
-                  type="button" 
-                  className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 md:hidden pointer-events-none"
-                >
-                  Selecionar da Galeria
-                </button>
-                
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 hidden md:block">ou cole URL abaixo</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">ou</p>
               </div>
             )}
             
