@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus } from '../types';
 
@@ -60,13 +60,23 @@ export const PropertyList: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meus Imóveis</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie seu catálogo imobiliário</p>
         </div>
-        <Link 
-          to="/properties/new" 
-          className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <Plus size={20} />
-          Novo Imóvel
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link 
+            to="/showcase"
+            target="_blank"
+            className="flex items-center gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Eye size={20} />
+            Ver Minha Vitrine
+          </Link>
+          <Link 
+            to="/properties/new" 
+            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Plus size={20} />
+            Novo Imóvel
+          </Link>
+        </div>
       </div>
 
       {properties.length > 0 && (

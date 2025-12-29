@@ -24,8 +24,8 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   whatsappMessage: '',
   media: [],
   simulador: false,
-  viewersMin: 15,
-  viewersMax: 40
+  viewersMin: 113,
+  viewersMax: 284
 };
 
 export const PropertyEditor: React.FC = () => {
