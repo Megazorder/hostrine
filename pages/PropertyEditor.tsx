@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, Wand2, CheckCircle2, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, CheckCircle2, Trash2 } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus, MediaItem } from '../types';
 
@@ -27,13 +27,6 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   viewersMin: 15,
   viewersMax: 40
 };
-
-const PLACEHOLDER_IMAGES = [
-  "https://images.unsplash.com/photo-1600596542815-27838eb2db69?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1200&q=80"
-];
 
 export const PropertyEditor: React.FC = () => {
   const { id } = useParams();
@@ -125,7 +118,7 @@ export const PropertyEditor: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files);
+    const files: File[] = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -159,27 +152,6 @@ export const PropertyEditor: React.FC = () => {
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2000);
     }, 500);
-  };
-
-  const generatePlaceholders = () => {
-    setIsUploading(true);
-    setUploadProgress(0);
-    
-    let step = 0;
-    const interval = setInterval(() => {
-      step += 25;
-      setUploadProgress(step);
-      if (step >= 100) {
-        clearInterval(interval);
-        // Add 3 random images
-        const shuffled = [...PLACEHOLDER_IMAGES].sort(() => 0.5 - Math.random());
-        shuffled.slice(0, 3).forEach(url => addMedia(url, 'image'));
-        setIsUploading(false);
-        setUploadProgress(0);
-        setUploadSuccess(true);
-        setTimeout(() => setUploadSuccess(false), 2000);
-      }
-    }, 200);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -329,15 +301,6 @@ export const PropertyEditor: React.FC = () => {
         <div className={cardClass}>
           <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mídia (Fotos e Vídeos)</h2>
-            <button 
-              type="button" 
-              onClick={generatePlaceholders} 
-              disabled={isUploading}
-              className="text-sm flex items-center gap-1.5 text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300 disabled:opacity-50"
-            >
-              <Wand2 size={16} />
-              Gerar via IA
-            </button>
           </div>
           
           {/* Drag and Drop Zone */}
