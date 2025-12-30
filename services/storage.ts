@@ -20,6 +20,7 @@ const MOCK_PROPERTIES: Property[] = [
     title: 'Cobertura Duplex Jardins',
     price: 4500000,
     displayPrice: 'R$ 4.500.000',
+    priceVisibility: 'full',
     city: 'São Paulo',
     neighborhood: 'Jardins',
     lat: '-23.567',

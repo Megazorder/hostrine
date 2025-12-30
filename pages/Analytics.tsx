@@ -4,18 +4,29 @@ import { storageService } from '../services/storage';
 
 export const Analytics: React.FC = () => {
   const [period, setPeriod] = useState('7d');
+  const [hoveredData, setHoveredData] = useState<any>(null);
   const properties = storageService.getProperties();
 
-  // Mock data simulation based on properties
+  // Stats Logic
   const stats = useMemo(() => {
     const totalProperties = properties.length;
-    // Simulate metrics
     const totalViews = properties.reduce((acc, p) => acc + (Math.floor(Math.random() * 500) + 50), 0);
-    const totalClicks = Math.floor(totalViews * 0.15); // 15% conversion assumption
+    const totalClicks = Math.floor(totalViews * 0.15);
     const totalLeads = Math.floor(totalClicks * 0.4);
-
     return { totalViews, totalClicks, totalLeads, totalProperties };
   }, [properties, period]);
+
+  // Chart Data Generation
+  const chartData = useMemo(() => {
+    const points = period === '24h' ? 24 : period === '7d' ? 7 : 12;
+    const data = [];
+    for (let i = 0; i < points; i++) {
+      const views = Math.floor(Math.random() * 100) + 20;
+      const clicks = Math.floor(views * (Math.random() * 0.3 + 0.1));
+      data.push({ label: i.toString(), views, clicks });
+    }
+    return data;
+  }, [period]);
 
   const topProperties = useMemo(() => {
     return [...properties]
@@ -44,8 +55,81 @@ export const Analytics: React.FC = () => {
     </div>
   );
 
+  // Simple SVG Line Chart Construction
+  const Chart = () => {
+    const height = 200;
+    const width = 100; // percent
+    const maxVal = Math.max(...chartData.map(d => d.views));
+    
+    // Scale helper
+    const getY = (val: number) => height - (val / maxVal) * height * 0.8 - 10;
+    const getX = (idx: number) => (idx / (chartData.length - 1)) * 100;
+
+    const pointsBlue = chartData.map((d, i) => `${getX(i)},${getY(d.views)}`).join(' ');
+    const pointsGreen = chartData.map((d, i) => `${getX(i)},${getY(d.clicks)}`).join(' ');
+
+    return (
+      <div className="relative h-64 w-full cursor-crosshair">
+        <svg className="w-full h-full overflow-visible" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none">
+          {/* Grid lines */}
+          <line x1="0" y1={height} x2="100" y2={height} stroke="#e5e7eb" strokeWidth="1" />
+          
+          {/* Blue Line (Traffic) */}
+          <polyline 
+            points={pointsBlue} 
+            fill="none" 
+            stroke="#3b82f6" 
+            strokeWidth="2" 
+            vectorEffect="non-scaling-stroke"
+            className="drop-shadow-sm"
+          />
+          
+          {/* Green Line (Clicks) */}
+          <polyline 
+            points={pointsGreen} 
+            fill="none" 
+            stroke="#22c55e" 
+            strokeWidth="2" 
+            vectorEffect="non-scaling-stroke"
+            className="drop-shadow-sm"
+          />
+
+          {/* Invisible Overlay for Tooltips */}
+          {chartData.map((d, i) => (
+             <rect 
+                key={i} 
+                x={getX(i) - 2} 
+                y="0" 
+                width="4" 
+                height={height} 
+                fill="transparent"
+                onMouseEnter={() => setHoveredData({ ...d, x: getX(i) })}
+                onMouseLeave={() => setHoveredData(null)}
+             />
+          ))}
+
+          {/* Hover Points */}
+          {hoveredData && (
+              <>
+                <circle cx={hoveredData.x} cy={getY(hoveredData.views)} r="1.5" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+                <circle cx={hoveredData.x} cy={getY(hoveredData.clicks)} r="1.5" fill="white" stroke="#22c55e" strokeWidth="0.5" />
+                <line x1={hoveredData.x} y1="0" x2={hoveredData.x} y2={height} stroke="#9ca3af" strokeDasharray="2" strokeWidth="0.2" />
+              </>
+          )}
+        </svg>
+
+        {hoveredData && (
+            <div className="absolute top-0 bg-gray-900 text-white text-xs p-2 rounded shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full" style={{ left: `${hoveredData.x}%` }}>
+                <div className="flex items-center gap-2 mb-1"><div className="w-2 h-2 bg-blue-500 rounded-full"></div> Visitas: {hoveredData.views}</div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full"></div> Cliques: {hoveredData.clicks}</div>
+            </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn pb-24">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Análise de Performance</h1>
@@ -69,38 +153,13 @@ export const Analytics: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Visitas na Vitrine" 
-          value={stats.totalViews.toLocaleString()} 
-          subtext="Total de visualizações únicas" 
-          icon={Eye} 
-          color="bg-blue-500" 
-        />
-        <StatCard 
-          title="Cliques no WhatsApp" 
-          value={stats.totalClicks.toLocaleString()} 
-          subtext="Intenção de contato direta" 
-          icon={MessageCircle} 
-          color="bg-green-500" 
-        />
-        <StatCard 
-          title="Taxa de Conversão" 
-          value={`${((stats.totalClicks / stats.totalViews) * 100).toFixed(1)}%`} 
-          subtext="Visitas que viraram cliques" 
-          icon={TrendingUp} 
-          color="bg-purple-500" 
-        />
-        <StatCard 
-          title="Imóveis Ativos" 
-          value={stats.totalProperties} 
-          subtext="Disponíveis na vitrine" 
-          icon={BarChart3} 
-          color="bg-orange-500" 
-        />
+        <StatCard title="Visitas na Vitrine" value={stats.totalViews.toLocaleString()} subtext="Total de visualizações únicas" icon={Eye} color="bg-blue-500" />
+        <StatCard title="Cliques no WhatsApp" value={stats.totalClicks.toLocaleString()} subtext="Intenção de contato direta" icon={MessageCircle} color="bg-green-500" />
+        <StatCard title="Taxa de Conversão" value={`${((stats.totalClicks / stats.totalViews) * 100).toFixed(1)}%`} subtext="Visitas que viraram cliques" icon={TrendingUp} color="bg-purple-500" />
+        <StatCard title="Imóveis Ativos" value={stats.totalProperties} subtext="Disponíveis na vitrine" icon={BarChart3} color="bg-orange-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Simple Chart Visualization */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -108,31 +167,13 @@ export const Analytics: React.FC = () => {
               Tráfego vs Conversão
             </h3>
           </div>
-          <div className="h-64 flex items-end justify-between gap-2 px-2">
-             {[...Array(12)].map((_, i) => {
-               const h1 = Math.floor(Math.random() * 80) + 20;
-               const h2 = Math.floor(h1 * 0.4);
-               return (
-                 <div key={i} className="w-full flex flex-col justify-end gap-1 group relative">
-                   <div className="w-full bg-blue-500/80 rounded-t hover:bg-blue-400 transition-colors relative" style={{ height: `${h1}%` }}>
-                      <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none">
-                        {h1 * 10} visitas
-                      </div>
-                   </div>
-                   <div className="w-full bg-green-500/80 rounded-t hover:bg-green-400 transition-colors relative" style={{ height: `${h2}%` }}>
-                   </div>
-                   <div className="h-px bg-gray-200 dark:bg-gray-700 w-full mt-2"></div>
-                 </div>
-               );
-             })}
-          </div>
+          <Chart />
           <div className="flex justify-center gap-6 mt-4 text-sm">
              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span className="w-3 h-3 bg-blue-500 rounded-full"></span> Visitas</div>
              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span className="w-3 h-3 bg-green-500 rounded-full"></span> WhatsApp</div>
           </div>
         </div>
 
-        {/* Top Properties */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
              <TrendingUp size={20} className="text-brand-500" />
@@ -141,20 +182,14 @@ export const Analytics: React.FC = () => {
            <div className="space-y-6">
              {topProperties.map((p, idx) => (
                <div key={p.id} className="flex items-start gap-3">
-                 <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold text-gray-500">
-                   {idx + 1}
-                 </span>
+                 <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold text-gray-500">{idx + 1}</span>
                  <div className="flex-1 min-w-0">
                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={p.title}>{p.title}</p>
                    <p className="text-xs text-gray-500 dark:text-gray-400">{p.neighborhood}</p>
                  </div>
                  <div className="text-right">
-                   <div className="flex items-center justify-end gap-1 text-xs text-blue-500 font-medium">
-                     <Eye size={12} /> {p.views}
-                   </div>
-                   <div className="flex items-center justify-end gap-1 text-xs text-green-500 font-medium mt-1">
-                     <MousePointerClick size={12} /> {p.clicks}
-                   </div>
+                   <div className="flex items-center justify-end gap-1 text-xs text-blue-500 font-medium"><Eye size={12} /> {p.views}</div>
+                   <div className="flex items-center justify-end gap-1 text-xs text-green-500 font-medium mt-1"><MousePointerClick size={12} /> {p.clicks}</div>
                  </div>
                </div>
              ))}

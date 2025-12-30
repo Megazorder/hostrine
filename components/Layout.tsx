@@ -17,7 +17,6 @@ export const Layout: React.FC = () => {
   const profile = storageService.getProfile();
 
   useEffect(() => {
-    // Basic Auth Check
     if (!storageService.isAuthenticated()) {
       navigate('/login');
     }
@@ -69,10 +68,7 @@ export const Layout: React.FC = () => {
              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">
-              LE
-            </div>
-            <span className="font-bold text-gray-800 dark:text-white text-sm">Luxe Admin</span>
+            <span className="font-bold text-gray-800 dark:text-white text-sm">{profile.name || 'Painel'}</span>
           </div>
         </div>
         
@@ -94,10 +90,7 @@ export const Layout: React.FC = () => {
       >
         <div className="p-6 border-b border-gray-100 dark:border-gray-700 hidden md:flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold shadow-sm">
-              LE
-            </div>
-            <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight">Luxe</span>
+            <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight truncate max-w-[150px]">{profile.name || 'Painel'}</span>
           </div>
           <button 
             onClick={toggleTheme} 

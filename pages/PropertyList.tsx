@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye } from 'lucide-react';
+import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Globe } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus } from '../types';
 
@@ -19,6 +19,16 @@ export const PropertyList: React.FC = () => {
   const handleDelete = (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este imóvel?')) {
       storageService.deleteProperty(id);
+      setProperties(storageService.getProperties());
+    }
+  };
+
+  const handlePublish = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    const property = properties.find(p => p.id === id);
+    if (property) {
+      const updated = { ...property, status: PropertyStatus.AVAILABLE };
+      storageService.saveProperty(updated);
       setProperties(storageService.getProperties());
     }
   };
@@ -49,6 +59,7 @@ export const PropertyList: React.FC = () => {
       case PropertyStatus.SOLD: return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
       case PropertyStatus.RESERVED: return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
       case PropertyStatus.LAST_UNITS: return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800';
+      case PropertyStatus.DRAFT: return 'bg-gray-200 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
       default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     }
   };
@@ -132,11 +143,28 @@ export const PropertyList: React.FC = () => {
                   alt={property.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-3 right-3 flex gap-2">
+                
+                {/* Status Badge */}
+                <div className="absolute top-3 right-3 flex gap-2 z-10">
                   <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border ${getStatusColor(property.status)}`}>
                     {property.status}
                   </span>
                 </div>
+
+                {/* Quick Publish Button for Drafts */}
+                {property.status === PropertyStatus.DRAFT && (
+                  <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center z-20">
+                    <button 
+                      onClick={(e) => handlePublish(e, property.id)}
+                      className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transform hover:scale-105 transition-all flex items-center gap-2"
+                    >
+                      <Globe size={18} />
+                      Publicar
+                    </button>
+                  </div>
+                )}
+
+                {/* Price Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                   <p className="text-white font-bold text-lg">{property.displayPrice}</p>
                 </div>

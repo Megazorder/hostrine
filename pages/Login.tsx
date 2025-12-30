@@ -94,7 +94,6 @@ export const Login: React.FC = () => {
                   placeholder="••••••••"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1 text-right">Dica: Use uma senha simples para teste.</p>
             </div>
 
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}

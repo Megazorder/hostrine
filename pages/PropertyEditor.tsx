@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, CheckCircle2, Trash2, Tag } from 'lucide-react';
+import { Save, ArrowLeft, X, Image as ImageIcon, Loader2, UploadCloud, CheckCircle2, Trash2, Tag, Eye, EyeOff, FileText } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus, MediaItem } from '../types';
 
@@ -8,11 +8,12 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   title: '',
   price: 0,
   displayPrice: '',
+  priceVisibility: 'full',
   city: '',
   neighborhood: '',
   lat: '',
   lng: '',
-  status: PropertyStatus.AVAILABLE,
+  status: PropertyStatus.DRAFT,
   type: 'Apartamento',
   description: '',
   features: [],
@@ -32,11 +33,10 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
 export const PropertyEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Property | any>(EMPTY_PROPERTY);
   const [newFeature, setNewFeature] = useState('');
-  const [newMediaUrl, setNewMediaUrl] = useState('');
-  const [newMediaType, setNewMediaType] = useState<'image' | 'video'>('image');
   
   // Media Upload States
   const [isDragging, setIsDragging] = useState(false);
@@ -81,23 +81,14 @@ export const PropertyEditor: React.FC = () => {
     setFormData((prev: any) => ({ ...prev, features: prev.features.filter((_: any, i: number) => i !== index) }));
   };
 
-  const addMedia = (url: string, type: 'image' | 'video' = 'image') => {
+  const addMedia = (url: string) => {
     if (url.trim()) {
       const item: MediaItem = {
         id: Math.random().toString(36).substr(2, 9),
-        type: type,
+        type: 'image',
         url: url.trim()
       };
       setFormData((prev: any) => ({ ...prev, media: [...prev.media, item] }));
-    }
-  };
-
-  const handleManualAddMedia = () => {
-    if (newMediaUrl.trim()) {
-      addMedia(newMediaUrl, newMediaType);
-      setNewMediaUrl('');
-      setUploadSuccess(true);
-      setTimeout(() => setUploadSuccess(false), 2000);
     }
   };
 
@@ -120,31 +111,45 @@ export const PropertyEditor: React.FC = () => {
     setIsDragging(false);
     
     const files: File[] = Array.from(e.dataTransfer.files);
+    processFiles(files);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files: File[] = Array.from(e.target.files);
+      processFiles(files);
+    }
+  };
+
+  const processFiles = async (files: File[]) => {
     if (files.length === 0) return;
+
+    // Filter only images
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      alert("Apenas imagens e GIFs são permitidos.");
+      return;
+    }
 
     setIsUploading(true);
     setUploadProgress(0);
 
     let processed = 0;
-    const total = files.length;
+    const total = imageFiles.length;
 
-    for (const file of files) {
-      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        await new Promise<void>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            if (event.target?.result) {
-              const type = file.type.startsWith('video/') ? 'video' : 'image';
-              addMedia(event.target.result as string, type);
-            }
-            processed++;
-            setUploadProgress(Math.round((processed / total) * 100));
-            // Simulate network delay for effect
-            setTimeout(resolve, 300);
-          };
-          reader.readAsDataURL(file);
-        });
-      }
+    for (const file of imageFiles) {
+      await new Promise<void>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            addMedia(event.target.result as string);
+          }
+          processed++;
+          setUploadProgress(Math.round((processed / total) * 100));
+          setTimeout(resolve, 200);
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
     setTimeout(() => {
@@ -155,7 +160,7 @@ export const PropertyEditor: React.FC = () => {
     }, 500);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, publish: boolean = false) => {
     e.preventDefault();
     setLoading(true);
     
@@ -164,7 +169,8 @@ export const PropertyEditor: React.FC = () => {
       const payload: Property = {
         ...formData,
         id: id || Math.random().toString(36).substr(2, 9),
-        createdAt: formData.createdAt || Date.now()
+        createdAt: formData.createdAt || Date.now(),
+        status: publish ? PropertyStatus.AVAILABLE : formData.status || PropertyStatus.DRAFT
       };
       
       storageService.saveProperty(payload);
@@ -179,7 +185,7 @@ export const PropertyEditor: React.FC = () => {
   const sectionTitleClass = "text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2";
 
   return (
-    <div className="max-w-5xl mx-auto pb-24">
+    <div className="max-w-5xl mx-auto pb-32">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate('/')} className="p-2 hover:bg-white dark:hover:bg-gray-800 rounded-full transition-colors">
           <ArrowLeft className="text-gray-500 dark:text-gray-400" />
@@ -190,7 +196,7 @@ export const PropertyEditor: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form className="space-y-8">
         {/* Basic Info */}
         <div className={cardClass}>
           <h2 className={sectionTitleClass}>Informações Básicas</h2>
@@ -205,9 +211,24 @@ export const PropertyEditor: React.FC = () => {
               <input required type="number" name="price" value={formData.price} onChange={handlePriceChange} className={inputClass} />
             </div>
 
-            <div>
-              <label className={labelClass}>Preço Exibição (Automático)</label>
-              <input disabled name="displayPrice" value={formData.displayPrice} className={`${inputClass} bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-500`} />
+            <div className="flex gap-4">
+               <div className="flex-1">
+                 <label className={labelClass}>Preço Exibição</label>
+                 <input disabled name="displayPrice" value={formData.displayPrice} className={`${inputClass} bg-gray-50 dark:bg-gray-900 text-gray-500`} />
+               </div>
+               <div className="w-1/3">
+                 <label className={labelClass}>Visibilidade</label>
+                 <div className="relative">
+                   <select name="priceVisibility" value={formData.priceVisibility || 'full'} onChange={handleChange} className={`${inputClass} appearance-none`}>
+                     <option value="full">Visível</option>
+                     <option value="masked">Mascarado (R$ *.*)</option>
+                     <option value="hidden">Sob Consulta</option>
+                   </select>
+                   <div className="absolute right-3 top-2.5 pointer-events-none text-gray-500">
+                     {formData.priceVisibility === 'hidden' ? <EyeOff size={16} /> : <Eye size={16} />}
+                   </div>
+                 </div>
+               </div>
             </div>
 
             <div>
@@ -223,7 +244,7 @@ export const PropertyEditor: React.FC = () => {
             </div>
 
             <div>
-              <label className={labelClass}>Status</label>
+              <label className={labelClass}>Status Atual</label>
               <select name="status" value={formData.status} onChange={handleChange} className={inputClass}>
                 {Object.values(PropertyStatus).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -310,7 +331,8 @@ export const PropertyEditor: React.FC = () => {
         {/* Media */}
         <div className={cardClass}>
           <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mídia (Fotos e Vídeos)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Galeria de Imagens</h2>
+            <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Apenas Imagens/GIFs</span>
           </div>
           
           {/* Drag and Drop Zone */}
@@ -318,6 +340,7 @@ export const PropertyEditor: React.FC = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
             className={`
               relative mb-6 border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out text-center cursor-pointer group
               ${isDragging 
@@ -328,56 +351,40 @@ export const PropertyEditor: React.FC = () => {
               }
             `}
           >
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileInput} 
+              className="hidden" 
+              accept="image/png, image/jpeg, image/gif, image/webp" 
+              multiple 
+            />
+
             {isUploading ? (
               <div className="flex flex-col items-center justify-center py-4">
                 <Loader2 size={40} className="text-brand-600 animate-spin mb-3" />
-                <p className="text-gray-900 dark:text-white font-medium mb-2">Processando arquivos...</p>
+                <p className="text-gray-900 dark:text-white font-medium mb-2">Processando imagens...</p>
                 <div className="w-64 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-brand-600 transition-all duration-300 ease-out"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">{uploadProgress}% concluído</p>
               </div>
             ) : uploadSuccess ? (
               <div className="flex flex-col items-center justify-center py-6">
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-3">
                   <CheckCircle2 size={32} className="text-green-600 dark:text-green-400" />
                 </div>
-                <h3 className="text-green-700 dark:text-green-400 font-bold text-lg mb-1">Sucesso!</h3>
-                <p className="text-green-600 dark:text-green-500 text-sm">Mídia adicionada corretamente.</p>
+                <h3 className="text-green-700 dark:text-green-400 font-bold text-lg mb-1">Upload Concluído!</h3>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
                 <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                   <UploadCloud size={24} />
                 </div>
-                <h3 className="text-gray-900 dark:text-white font-medium mb-1">Arraste e solte arquivos aqui</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Suporta imagens (JPG, PNG) e vídeos (MP4)</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">ou</p>
-              </div>
-            )}
-            
-            {!isUploading && !uploadSuccess && (
-              <div className="mt-4 flex flex-col md:flex-row gap-2 max-w-lg mx-auto" onClick={(e) => e.stopPropagation()}>
-                <select 
-                  value={newMediaType} 
-                  onChange={(e) => setNewMediaType(e.target.value as any)} 
-                  className="px-3 py-2 border dark:border-gray-600 rounded-md outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="image">Imagem (URL)</option>
-                  <option value="video">Vídeo (URL)</option>
-                </select>
-                <input 
-                  value={newMediaUrl} 
-                  onChange={(e) => setNewMediaUrl(e.target.value)}
-                  className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-md outline-none focus:border-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" 
-                  placeholder={newMediaType === 'image' ? "https://..." : "https://..."} 
-                />
-                <button type="button" onClick={handleManualAddMedia} className="bg-gray-900 dark:bg-gray-700 text-white px-4 py-2 rounded-md font-medium hover:bg-gray-800 dark:hover:bg-gray-600">
-                  Adicionar
-                </button>
+                <h3 className="text-gray-900 dark:text-white font-medium mb-1">Toque ou arraste fotos aqui</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">JPG, PNG, GIF</p>
               </div>
             )}
           </div>
@@ -385,59 +392,64 @@ export const PropertyEditor: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
              {formData.media.map((item: MediaItem) => (
                <div key={item.id} className="relative group rounded-lg overflow-hidden aspect-square bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
-                 {item.type === 'image' ? (
-                   <img src={item.url} alt="Media" className="w-full h-full object-cover" />
-                 ) : (
-                   <video src={item.url} className="w-full h-full object-cover" />
-                 )}
+                 <img src={item.url} alt="Media" className="w-full h-full object-cover" />
                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    {item.type === 'video' ? <Video className="text-white" /> : <ImageIcon className="text-white" />}
                     <button type="button" onClick={() => removeMedia(item.id)} className="bg-red-500 p-2 rounded-full text-white hover:bg-red-600 transition-colors">
                       <Trash2 size={16} />
                     </button>
                  </div>
                </div>
              ))}
-             {formData.media.length === 0 && !isUploading && (
-                <div className="col-span-full py-8 text-center text-gray-400 dark:text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-                  Nenhuma mídia adicionada
-                </div>
-             )}
           </div>
         </div>
 
         {/* Marketing */}
         <div className={cardClass}>
-          <h2 className={sectionTitleClass}>Marketing e Prova Social</h2>
-          
+          <h2 className={sectionTitleClass}>Marketing</h2>
           <div className="mb-4">
-            <label className={labelClass}>Mensagem do WhatsApp (Pré-definida)</label>
+            <label className={labelClass}>Mensagem do WhatsApp</label>
             <input name="whatsappMessage" value={formData.whatsappMessage} onChange={handleChange} className={inputClass} placeholder="Olá, gostaria de saber mais sobre..." />
           </div>
-
           <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className={labelClass}>Visitantes Simultâneos (Min)</label>
-              <input type="number" name="viewersMin" value={formData.viewersMin} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Visitantes Simultâneos (Max)</label>
-              <input type="number" name="viewersMax" value={formData.viewersMax} onChange={handleChange} className={inputClass} />
-            </div>
+            <div><label className={labelClass}>Visitantes (Min)</label><input type="number" name="viewersMin" value={formData.viewersMin} onChange={handleChange} className={inputClass} /></div>
+            <div><label className={labelClass}>Visitantes (Max)</label><input type="number" name="viewersMax" value={formData.viewersMax} onChange={handleChange} className={inputClass} /></div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="fixed bottom-0 left-0 md:left-64 right-0 p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-4 z-40 transition-colors">
-           <button type="button" onClick={() => navigate('/')} className="px-6 py-2.5 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
-           <button 
-             type="submit" 
-             disabled={loading || isUploading}
-             className="px-6 py-2.5 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 transition-colors shadow-lg shadow-brand-500/30 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-           >
-             {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-             {id ? 'Salvar Alterações' : 'Publicar Imóvel'}
-           </button>
+        {/* Actions Bottom Bar */}
+        <div className="fixed bottom-0 left-0 md:left-64 right-0 p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40 transition-colors">
+           <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+               <button 
+                 type="button" 
+                 onClick={() => navigate('/')} 
+                 className="px-4 py-2.5 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-2"
+               >
+                 <X size={18} />
+                 <span className="hidden sm:inline">Cancelar</span>
+               </button>
+
+               <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={(e) => handleSubmit(e, false)}
+                    disabled={loading || isUploading}
+                    className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+                  >
+                    <Save size={18} />
+                    Salvar
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={(e) => handleSubmit(e, true)}
+                    disabled={loading || isUploading}
+                    className="px-6 py-2.5 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 transition-colors shadow-lg shadow-brand-500/30 flex items-center gap-2 disabled:opacity-70"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : <FileText size={20} />}
+                    <span className="hidden sm:inline">Salvar e</span> Publicar
+                  </button>
+               </div>
+           </div>
         </div>
       </form>
     </div>

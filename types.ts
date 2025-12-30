@@ -2,7 +2,8 @@ export enum PropertyStatus {
   AVAILABLE = 'Disponível',
   SOLD = 'Vendido',
   RESERVED = 'Reservado',
-  LAST_UNITS = 'Últimas unidades'
+  LAST_UNITS = 'Últimas unidades',
+  DRAFT = 'Rascunho' // Added Draft for "Salvar apenas"
 }
 
 export interface MediaItem {
@@ -11,11 +12,14 @@ export interface MediaItem {
   url: string;
 }
 
+export type PriceVisibility = 'full' | 'masked' | 'hidden';
+
 export interface Property {
   id: string;
   title: string;
   price: number;
   displayPrice: string; // Formatted string for display
+  priceVisibility: PriceVisibility; // New field
   city: string;
   neighborhood: string;
   lat: string;
@@ -34,7 +38,7 @@ export interface Property {
   simulador: boolean;
   viewersMin: number;
   viewersMax: number;
-  belowMarketPrice?: boolean; // New field
+  belowMarketPrice?: boolean; 
   createdAt: number;
 }
 

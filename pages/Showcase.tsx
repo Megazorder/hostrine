@@ -20,7 +20,7 @@ export const Showcase: React.FC = () => {
   const [calcRate, setCalcRate] = useState(10.5);
   const [calcResult, setCalcResult] = useState<{parcela: number, renda: number} | null>(null);
 
-  // Touch state for swipe navigation
+  // Touch state
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
@@ -29,27 +29,21 @@ export const Showcase: React.FC = () => {
     setProfile(storageService.getProfile());
   }, []);
 
-  // Viewer Simulation Effect
   useEffect(() => {
     if (!selectedProperty) {
       setShowViewerNotif(false);
       return;
     }
-
-    // Defaults match the provided HTML template
     const min = selectedProperty.viewersMin || 113;
     const max = selectedProperty.viewersMax || 284;
-
     const simulate = () => {
       const count = Math.floor(Math.random() * (max - min + 1)) + min;
       setViewerCount(count);
       setShowViewerNotif(true);
       setTimeout(() => setShowViewerNotif(false), 5000);
     };
-
     const initialTimer = setTimeout(simulate, 1500);
     const intervalTimer = setInterval(simulate, 58000);
-
     return () => {
       clearTimeout(initialTimer);
       clearInterval(intervalTimer);
@@ -57,7 +51,7 @@ export const Showcase: React.FC = () => {
   }, [selectedProperty]);
 
   const activeProperties = useMemo(() => {
-    return properties.filter(p => p.status !== PropertyStatus.SOLD);
+    return properties.filter(p => p.status !== PropertyStatus.SOLD && p.status !== PropertyStatus.DRAFT);
   }, [properties]);
 
   const groupedProperties = useMemo(() => {
@@ -69,6 +63,16 @@ export const Showcase: React.FC = () => {
     });
     return groups;
   }, [activeProperties]);
+
+  const formatPrice = (p: Property) => {
+    if (p.priceVisibility === 'hidden') return 'Sob Consulta';
+    if (p.priceVisibility === 'masked') {
+       // Replace numeric parts with asterisks but keep currency symbol and structure if simple, 
+       // or just return a static masked string
+       return 'R$ *.*' + p.displayPrice.replace(/[0-9]/g, '*').slice(-5); // Rough mask example
+    }
+    return p.displayPrice;
+  };
 
   const handleOpenProperty = (property: Property) => {
     setSelectedProperty(property);
@@ -89,12 +93,9 @@ export const Showcase: React.FC = () => {
     const financiado = valor - calcEntry;
     const taxaMensal = (calcRate / 100) / 12;
     const meses = calcYears * 12;
-    
-    // SAC Simplificado (Primeira parcela)
     const amortizacao = financiado / meses;
     const juros = financiado * taxaMensal;
     const primeiraParcela = amortizacao + juros;
-    
     setCalcResult({
       parcela: primeiraParcela,
       renda: primeiraParcela / 0.3
@@ -108,19 +109,14 @@ export const Showcase: React.FC = () => {
 
   const nextSlide = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (selectedProperty) {
-      setCurrentMediaIndex((prev) => (prev + 1) % selectedProperty.media.length);
-    }
+    if (selectedProperty) setCurrentMediaIndex((prev) => (prev + 1) % selectedProperty.media.length);
   };
 
   const prevSlide = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (selectedProperty) {
-      setCurrentMediaIndex((prev) => (prev - 1 + selectedProperty.media.length) % selectedProperty.media.length);
-    }
+    if (selectedProperty) setCurrentMediaIndex((prev) => (prev - 1 + selectedProperty.media.length) % selectedProperty.media.length);
   };
 
-  // Touch Event Handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -132,19 +128,10 @@ export const Showcase: React.FC = () => {
 
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
     const distance = touchStart - touchEnd;
     const minSwipeDistance = 50;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && selectedProperty) {
-      setCurrentMediaIndex((prev) => (prev + 1) % selectedProperty.media.length);
-    }
-    
-    if (isRightSwipe && selectedProperty) {
-      setCurrentMediaIndex((prev) => (prev - 1 + selectedProperty.media.length) % selectedProperty.media.length);
-    }
+    if (distance > minSwipeDistance && selectedProperty) setCurrentMediaIndex((prev) => (prev + 1) % selectedProperty.media.length);
+    if (distance < -minSwipeDistance && selectedProperty) setCurrentMediaIndex((prev) => (prev - 1 + selectedProperty.media.length) % selectedProperty.media.length);
   };
 
   if (!profile) return <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center">Carregando...</div>;
@@ -175,7 +162,6 @@ export const Showcase: React.FC = () => {
             <div>
                 <div className="flex items-center gap-1">
                     <h1 className="text-sm font-bold text-white leading-tight">{profile.name}</h1>
-                    <svg className="w-3 h-3 text-blue-400 fill-current" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.114-1.32.314C14.733 2.47 13.48 1.5 12 1.5c-1.48 0-2.733.97-3.452 2.316-.4-.2-.85-.314-1.32-.314-2.108 0-3.818 1.788-3.818 3.998 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.71 3.998 3.818 3.998.47 0 .92-.114 1.32-.314.72 1.347 1.973 2.316 3.452 2.316 1.48 0 2.733-.97 3.452-2.316.4.2.85.314 1.32.314 2.108 0 3.818-1.788 3.818-3.998 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zM13 17l-5-5 1.41-1.41L13 14.17l7.59-7.59L22 8l-9 9z"/></svg>
                 </div>
                 <p className="text-[10px] text-blue-400 font-bold tracking-wider">{profile.creci}</p>
             </div>
@@ -197,17 +183,12 @@ export const Showcase: React.FC = () => {
               <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1920&q=80" alt="Background" className="w-full h-full object-cover opacity-30" decoding="async" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/80 to-transparent"></div>
             </div>
-            
             <div className="relative z-10 max-w-3xl mx-auto pt-4">
                <div className="relative w-32 h-32 mx-auto mb-6">
                    <div className="w-full h-full rounded-full p-[2px] bg-gradient-to-tr from-blue-500 to-cyan-400 shadow-2xl">
                        <img src={profile.photoUrl} className="w-full h-full rounded-full object-cover border-4 border-[#0f172a]" alt="Foto Corretor" />
                    </div>
-                   <div className="absolute bottom-1 right-1 bg-[#0f172a] rounded-full p-1">
-                       <svg className="w-6 h-6 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.114-1.32.314C14.733 2.47 13.48 1.5 12 1.5c-1.48 0-2.733.97-3.452 2.316-.4-.2-.85-.314-1.32-.314-2.108 0-3.818 1.788-3.818 3.998 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.71 3.998 3.818 3.998.47 0 .92-.114 1.32-.314.72 1.347 1.973 2.316 3.452 2.316 1.48 0 2.733-.97 3.452-2.316.4.2.85.314 1.32.314 2.108 0 3.818-1.788 3.818-3.998 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zM13 17l-5-5 1.41-1.41L13 14.17l7.59-7.59L22 8l-9 9z"/></svg>
-                   </div>
                </div>
-               
                <h1 className="text-4xl md:text-6xl font-bold mb-2 tracking-tight text-white">{profile.name}</h1>
                <p className="text-sm uppercase tracking-[0.2em] text-blue-400 font-bold mb-6">{profile.creci} • Especialista em Alto Padrão</p>
                <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">Curadoria exclusiva de imóveis.</p>
@@ -235,7 +216,7 @@ export const Showcase: React.FC = () => {
                                         )}
                                         <div className="absolute top-3 left-3 badge px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-white z-10">{imovel.type}</div>
                                         <div className="absolute bottom-3 left-3 badge px-3 py-1 rounded text-sm font-bold text-white z-10 border-blue-500/50 flex flex-col items-start gap-1">
-                                            {imovel.displayPrice}
+                                            {formatPrice(imovel)}
                                             {imovel.belowMarketPrice && (
                                                 <span className="text-[10px] text-green-400 font-bold bg-green-900/80 px-1.5 py-0.5 rounded border border-green-500/50 animate-pulse">
                                                     ABAIXO DO MERCADO
@@ -266,7 +247,6 @@ export const Showcase: React.FC = () => {
       {/* DETAIL VIEW */}
       {selectedProperty && (
         <div className="min-h-screen bg-[#0f172a] pb-20 relative pt-24 animate-fadeIn">
-            
             {showViewerNotif && (
                 <div className="fixed bottom-6 left-6 z-40 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-[80vw] slide-in-bottom">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.8)]"></div>
@@ -302,7 +282,7 @@ export const Showcase: React.FC = () => {
                     <div className="flex flex-col items-end gap-3">
                         <div className="text-right">
                             <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Valor de Investimento</p>
-                            <p className="text-4xl font-bold text-white">{selectedProperty.displayPrice}</p>
+                            <p className="text-4xl font-bold text-white">{formatPrice(selectedProperty)}</p>
                             {selectedProperty.belowMarketPrice && (
                                 <p className="text-sm font-bold text-green-400 mt-1 uppercase tracking-wider">★ Preço abaixo do mercado</p>
                             )}
