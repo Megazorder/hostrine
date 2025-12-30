@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, CheckCircle2, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, X, Image as ImageIcon, Video, Loader2, UploadCloud, CheckCircle2, Trash2, Tag } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus, MediaItem } from '../types';
 
@@ -25,7 +25,8 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   media: [],
   simulador: false,
   viewersMin: 113,
-  viewersMax: 284
+  viewersMax: 284,
+  belowMarketPrice: false
 };
 
 export const PropertyEditor: React.FC = () => {
@@ -227,10 +228,19 @@ export const PropertyEditor: React.FC = () => {
                 {Object.values(PropertyStatus).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-
-             <div className="flex items-center gap-3 py-4">
+          </div>
+          
+          <div className="mt-6 flex flex-col gap-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+             <div className="flex items-center gap-3">
               <input type="checkbox" id="simulador" name="simulador" checked={formData.simulador} onChange={handleChange} className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500" />
-              <label htmlFor="simulador" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Habilitar Simulador Financeiro neste imóvel?</label>
+              <label htmlFor="simulador" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Habilitar Simulador Financeiro</label>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="belowMarketPrice" name="belowMarketPrice" checked={formData.belowMarketPrice || false} onChange={handleChange} className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500" />
+              <div className="flex items-center gap-2">
+                 <label htmlFor="belowMarketPrice" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Destacar "Preço abaixo do mercado"</label>
+                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Tag size={10} /> Destaque</span>
+              </div>
             </div>
           </div>
         </div>

@@ -34,6 +34,7 @@ export interface Property {
   simulador: boolean;
   viewersMin: number;
   viewersMax: number;
+  belowMarketPrice?: boolean; // New field
   createdAt: number;
 }
 

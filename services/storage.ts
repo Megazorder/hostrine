@@ -2,7 +2,8 @@ import { AdminProfile, Property, PropertyStatus } from '../types';
 
 const KEYS = {
   PROFILE: 'luxe_admin_profile',
-  PROPERTIES: 'luxe_admin_properties'
+  PROPERTIES: 'luxe_admin_properties',
+  AUTH: 'luxe_admin_auth'
 };
 
 const DEFAULT_PROFILE: AdminProfile = {
@@ -40,6 +41,7 @@ const MOCK_PROPERTIES: Property[] = [
     simulador: true,
     viewersMin: 12,
     viewersMax: 45,
+    belowMarketPrice: true,
     createdAt: Date.now()
   }
 ];
@@ -81,5 +83,18 @@ export const storageService = {
     const properties = storageService.getProperties();
     const filtered = properties.filter(p => p.id !== id);
     localStorage.setItem(KEYS.PROPERTIES, JSON.stringify(filtered));
+  },
+
+  // Simple Auth Simulation
+  isAuthenticated: (): boolean => {
+    return !!localStorage.getItem(KEYS.AUTH);
+  },
+
+  login: (email: string): void => {
+    localStorage.setItem(KEYS.AUTH, JSON.stringify({ email, timestamp: Date.now() }));
+  },
+
+  logout: (): void => {
+    localStorage.removeItem(KEYS.AUTH);
   }
 };
