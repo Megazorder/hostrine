@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { storageService } from '../services/storage';
 import { Property, AdminProfile, PropertyStatus, Lead } from '../types';
-import { X, Check } from 'lucide-react';
+import { X, Check, Lock } from 'lucide-react';
 
 export const Showcase: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -286,6 +286,14 @@ export const Showcase: React.FC = () => {
                                             >
                                                 {formatPrice(imovel)}
                                             </span>
+                                            {!isPricesUnlocked && imovel.enableLeadCapture && (imovel.priceVisibility === 'masked' || imovel.priceVisibility === 'hidden') && (
+                                              <button
+                                                  onClick={(e) => handlePriceClick(e, imovel)}
+                                                  className="text-[10px] text-blue-300 hover:text-white uppercase font-bold tracking-wider flex items-center gap-1 cursor-pointer"
+                                              >
+                                                  <Lock size={10} /> Revelar preço
+                                              </button>
+                                            )}
                                             {imovel.belowMarketPrice && (
                                                 <span className="text-[10px] text-green-400 font-bold bg-green-900/80 px-1.5 py-0.5 rounded border border-green-500/50 animate-pulse">
                                                     ABAIXO DO MERCADO
@@ -357,6 +365,14 @@ export const Showcase: React.FC = () => {
                             >
                                 {formatPrice(selectedProperty)}
                             </p>
+                            {!isPricesUnlocked && selectedProperty.enableLeadCapture && (selectedProperty.priceVisibility === 'masked' || selectedProperty.priceVisibility === 'hidden') && (
+                              <button
+                                  onClick={(e) => handlePriceClick(e, selectedProperty)}
+                                  className="text-xs text-blue-300 hover:text-white uppercase font-bold tracking-wider flex items-center justify-end gap-1 cursor-pointer w-full mt-1"
+                              >
+                                  <Lock size={12} /> Revelar preço
+                              </button>
+                            )}
                             {selectedProperty.belowMarketPrice && (
                                 <p className="text-sm font-bold text-green-400 mt-1 uppercase tracking-wider">★ Preço abaixo do mercado</p>
                             )}
