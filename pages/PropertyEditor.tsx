@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, X, Image as ImageIcon, Loader2, UploadCloud, CheckCircle2, Trash2, Tag, Eye, EyeOff, FileText } from 'lucide-react';
+import { Save, ArrowLeft, X, Image as ImageIcon, Loader2, UploadCloud, CheckCircle2, Trash2, Tag, Eye, EyeOff, FileText, Lock } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { Property, PropertyStatus, MediaItem } from '../types';
 
@@ -27,7 +27,8 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   simulador: false,
   viewersMin: 113,
   viewersMax: 284,
-  belowMarketPrice: false
+  belowMarketPrice: false,
+  enableLeadCapture: false
 };
 
 export const PropertyEditor: React.FC = () => {
@@ -66,7 +67,8 @@ export const PropertyEditor: React.FC = () => {
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numeric = parseFloat(e.target.value) || 0;
-    const formatted = numeric.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    // Format without decimals
+    const formatted = numeric.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
     setFormData((prev: any) => ({ ...prev, price: numeric, displayPrice: formatted }));
   };
 
@@ -221,7 +223,7 @@ export const PropertyEditor: React.FC = () => {
                  <div className="relative">
                    <select name="priceVisibility" value={formData.priceVisibility || 'full'} onChange={handleChange} className={`${inputClass} appearance-none`}>
                      <option value="full">Visível</option>
-                     <option value="masked">Mascarado (R$ *.*)</option>
+                     <option value="masked">Mascarado</option>
                      <option value="hidden">Sob Consulta</option>
                    </select>
                    <div className="absolute right-3 top-2.5 pointer-events-none text-gray-500">
@@ -256,6 +258,15 @@ export const PropertyEditor: React.FC = () => {
               <input type="checkbox" id="simulador" name="simulador" checked={formData.simulador} onChange={handleChange} className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500" />
               <label htmlFor="simulador" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Habilitar Simulador Financeiro</label>
             </div>
+            
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="enableLeadCapture" name="enableLeadCapture" checked={formData.enableLeadCapture || false} onChange={handleChange} className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500" />
+              <div className="flex items-center gap-2">
+                 <label htmlFor="enableLeadCapture" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Ativar Captura de Leads ao clicar no preço</label>
+                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Lock size={10} /> Lead Magnet</span>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <input type="checkbox" id="belowMarketPrice" name="belowMarketPrice" checked={formData.belowMarketPrice || false} onChange={handleChange} className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500" />
               <div className="flex items-center gap-2">

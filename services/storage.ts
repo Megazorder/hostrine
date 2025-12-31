@@ -1,9 +1,10 @@
-import { AdminProfile, Property, PropertyStatus } from '../types';
+import { AdminProfile, Property, PropertyStatus, Lead } from '../types';
 
 const KEYS = {
   PROFILE: 'luxe_admin_profile',
   PROPERTIES: 'luxe_admin_properties',
-  AUTH: 'luxe_admin_auth'
+  AUTH: 'luxe_admin_auth',
+  LEADS: 'luxe_admin_leads'
 };
 
 const DEFAULT_PROFILE: AdminProfile = {
@@ -11,7 +12,8 @@ const DEFAULT_PROFILE: AdminProfile = {
   creci: '12345-F',
   photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
   whatsapp: '5511999999999',
-  headerMessage: 'Olá, gostaria de saber mais sobre imóveis de alto padrão.'
+  headerMessage: 'Olá, gostaria de saber mais sobre imóveis de alto padrão.',
+  subdomain: 'seu-imovel'
 };
 
 const MOCK_PROPERTIES: Property[] = [
@@ -43,7 +45,21 @@ const MOCK_PROPERTIES: Property[] = [
     viewersMin: 12,
     viewersMax: 45,
     belowMarketPrice: true,
+    enableLeadCapture: true,
     createdAt: Date.now()
+  }
+];
+
+const MOCK_LEADS: Lead[] = [
+  {
+    id: 'l1',
+    name: 'Roberto Silva',
+    whatsapp: '11999998888',
+    email: 'roberto@email.com',
+    propertyId: '1',
+    propertyTitle: 'Cobertura Duplex Jardins',
+    createdAt: Date.now() - 86400000,
+    status: 'new'
   }
 ];
 
@@ -84,6 +100,33 @@ export const storageService = {
     const properties = storageService.getProperties();
     const filtered = properties.filter(p => p.id !== id);
     localStorage.setItem(KEYS.PROPERTIES, JSON.stringify(filtered));
+  },
+
+  // Leads
+  getLeads: (): Lead[] => {
+    const stored = localStorage.getItem(KEYS.LEADS);
+    return stored ? JSON.parse(stored) : MOCK_LEADS;
+  },
+
+  saveLead: (lead: Lead): void => {
+    const leads = storageService.getLeads();
+    leads.unshift(lead);
+    localStorage.setItem(KEYS.LEADS, JSON.stringify(leads));
+  },
+
+  updateLeadStatus: (id: string, status: 'new' | 'contacted' | 'archived'): void => {
+    const leads = storageService.getLeads();
+    const index = leads.findIndex(l => l.id === id);
+    if (index >= 0) {
+      leads[index].status = status;
+      localStorage.setItem(KEYS.LEADS, JSON.stringify(leads));
+    }
+  },
+
+  deleteLead: (id: string): void => {
+    const leads = storageService.getLeads();
+    const filtered = leads.filter(l => l.id !== id);
+    localStorage.setItem(KEYS.LEADS, JSON.stringify(filtered));
   },
 
   // Simple Auth Simulation

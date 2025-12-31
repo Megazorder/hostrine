@@ -3,7 +3,7 @@ export enum PropertyStatus {
   SOLD = 'Vendido',
   RESERVED = 'Reservado',
   LAST_UNITS = 'Últimas unidades',
-  DRAFT = 'Rascunho' // Added Draft for "Salvar apenas"
+  DRAFT = 'Rascunho'
 }
 
 export interface MediaItem {
@@ -19,13 +19,14 @@ export interface Property {
   title: string;
   price: number;
   displayPrice: string; // Formatted string for display
-  priceVisibility: PriceVisibility; // New field
+  priceVisibility: PriceVisibility;
+  enableLeadCapture?: boolean; // New field for Lead Capture
   city: string;
   neighborhood: string;
   lat: string;
   lng: string;
   status: PropertyStatus;
-  type: string; // e.g., Apartamento, Casa
+  type: string;
   description: string;
   features: string[];
   bedrooms: number;
@@ -42,10 +43,23 @@ export interface Property {
   createdAt: number;
 }
 
+export interface Lead {
+  id: string;
+  name: string;
+  whatsapp: string;
+  email: string;
+  propertyId: string;
+  propertyTitle: string;
+  createdAt: number;
+  status: 'new' | 'contacted' | 'archived';
+}
+
 export interface AdminProfile {
   name: string;
   creci: string;
   photoUrl: string;
   whatsapp: string;
   headerMessage: string;
+  subdomain?: string; // New: Custom subdomain (e.g., myname.luxe.app)
+  customDomain?: string; // New: Full custom domain (e.g., www.myrealestate.com)
 }

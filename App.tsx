@@ -7,6 +7,7 @@ import { ProfileEditor } from './pages/ProfileEditor';
 import { Showcase } from './pages/Showcase';
 import { Login } from './pages/Login';
 import { Analytics } from './pages/Analytics';
+import { Leads } from './pages/Leads';
 
 const App: React.FC = () => {
   return (
@@ -17,6 +18,7 @@ const App: React.FC = () => {
         <Route path="/" element={<Layout />}>
           <Route index element={<PropertyList />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="leads" element={<Leads />} />
           <Route path="properties/new" element={<PropertyEditor />} />
           <Route path="properties/:id" element={<PropertyEditor />} />
           <Route path="profile" element={<ProfileEditor />} />

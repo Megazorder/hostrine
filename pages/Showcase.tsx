@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { storageService } from '../services/storage';
-import { Property, AdminProfile, PropertyStatus } from '../types';
+import { Property, AdminProfile, PropertyStatus, Lead } from '../types';
+import { X, Check } from 'lucide-react';
 
 export const Showcase: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -9,6 +9,12 @@ export const Showcase: React.FC = () => {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [isPricesUnlocked, setIsPricesUnlocked] = useState(false);
+  
+  // Lead Capture Modal State
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [leadFormData, setLeadFormData] = useState({ name: '', whatsapp: '', email: '' });
+  const [leadPropertyId, setLeadPropertyId] = useState<string | null>(null);
   
   // Viewer simulation state
   const [viewerCount, setViewerCount] = useState(0);
@@ -27,6 +33,9 @@ export const Showcase: React.FC = () => {
   useEffect(() => {
     setProperties(storageService.getProperties());
     setProfile(storageService.getProfile());
+    // Check if prices are already unlocked in this session/browser
+    const unlocked = localStorage.getItem('luxe_prices_unlocked') === 'true';
+    setIsPricesUnlocked(unlocked);
   }, []);
 
   useEffect(() => {
@@ -65,13 +74,68 @@ export const Showcase: React.FC = () => {
   }, [activeProperties]);
 
   const formatPrice = (p: Property) => {
+    if (isPricesUnlocked) return p.displayPrice;
     if (p.priceVisibility === 'hidden') return 'Sob Consulta';
+    
     if (p.priceVisibility === 'masked') {
-       // Replace numeric parts with asterisks but keep currency symbol and structure if simple, 
-       // or just return a static masked string
-       return 'R$ *.*' + p.displayPrice.replace(/[0-9]/g, '*').slice(-5); // Rough mask example
+       const priceStr = p.price.toString();
+       const len = priceStr.length;
+       let masked = '';
+
+       if (len === 5) {
+         // 5 digits (e.g., 90000) -> Show 3rd and 4th: **00*
+         masked = `**${priceStr.substring(2, 4)}*`;
+       } else if (len === 6) {
+         // 6 digits (e.g., 500000) -> Show 2nd and 3rd: *00***
+         masked = `*${priceStr.substring(1, 3)}***`;
+       } else if (len === 7) {
+         // 7 digits (e.g., 1500000) -> Show 3rd and 4th: **00***
+         masked = `**${priceStr.substring(2, 4)}***`;
+       } else {
+         // Fallback
+         masked = '**.***';
+       }
+       
+       return `R$ ${masked}`;
     }
     return p.displayPrice;
+  };
+
+  const handlePriceClick = (e: React.MouseEvent, property: Property) => {
+    e.stopPropagation();
+    if (isPricesUnlocked) return;
+    
+    if (property.priceVisibility === 'hidden' || property.priceVisibility === 'masked') {
+       if (property.enableLeadCapture) {
+         setLeadPropertyId(property.id);
+         setShowLeadModal(true);
+       }
+    }
+  };
+
+  const handleLeadSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadFormData.name || !leadFormData.whatsapp || !leadFormData.email) return;
+
+    const property = properties.find(p => p.id === leadPropertyId);
+    
+    const newLead: Lead = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: leadFormData.name,
+      whatsapp: leadFormData.whatsapp,
+      email: leadFormData.email,
+      propertyId: leadPropertyId || '',
+      propertyTitle: property?.title || 'Desconhecido',
+      createdAt: Date.now(),
+      status: 'new'
+    };
+
+    storageService.saveLead(newLead);
+    localStorage.setItem('luxe_prices_unlocked', 'true');
+    setIsPricesUnlocked(true);
+    setShowLeadModal(false);
+    setLeadFormData({ name: '', whatsapp: '', email: '' });
+    alert('Obrigado! Os preços agora estão visíveis.');
   };
 
   const handleOpenProperty = (property: Property) => {
@@ -216,7 +280,12 @@ export const Showcase: React.FC = () => {
                                         )}
                                         <div className="absolute top-3 left-3 badge px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-white z-10">{imovel.type}</div>
                                         <div className="absolute bottom-3 left-3 badge px-3 py-1 rounded text-sm font-bold text-white z-10 border-blue-500/50 flex flex-col items-start gap-1">
-                                            {formatPrice(imovel)}
+                                            <span 
+                                                onClick={(e) => handlePriceClick(e, imovel)}
+                                                className={!isPricesUnlocked && imovel.enableLeadCapture && (imovel.priceVisibility === 'masked' || imovel.priceVisibility === 'hidden') ? 'cursor-pointer hover:text-blue-400 transition-colors' : ''}
+                                            >
+                                                {formatPrice(imovel)}
+                                            </span>
                                             {imovel.belowMarketPrice && (
                                                 <span className="text-[10px] text-green-400 font-bold bg-green-900/80 px-1.5 py-0.5 rounded border border-green-500/50 animate-pulse">
                                                     ABAIXO DO MERCADO
@@ -282,7 +351,12 @@ export const Showcase: React.FC = () => {
                     <div className="flex flex-col items-end gap-3">
                         <div className="text-right">
                             <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Valor de Investimento</p>
-                            <p className="text-4xl font-bold text-white">{formatPrice(selectedProperty)}</p>
+                            <p 
+                                className={`text-4xl font-bold text-white ${!isPricesUnlocked && selectedProperty.enableLeadCapture && (selectedProperty.priceVisibility === 'masked' || selectedProperty.priceVisibility === 'hidden') ? 'cursor-pointer hover:text-blue-400 transition-colors' : ''}`}
+                                onClick={(e) => handlePriceClick(e, selectedProperty)}
+                            >
+                                {formatPrice(selectedProperty)}
+                            </p>
                             {selectedProperty.belowMarketPrice && (
                                 <p className="text-sm font-bold text-green-400 mt-1 uppercase tracking-wider">★ Preço abaixo do mercado</p>
                             )}
@@ -437,6 +511,73 @@ export const Showcase: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+            
+            {/* Lead Capture Modal */}
+            {showLeadModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-slate-700 shadow-2xl relative">
+                  <button 
+                    onClick={() => setShowLeadModal(false)} 
+                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                  
+                  <div className="text-center mb-6">
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Lock className="text-blue-600 dark:text-blue-400" size={24} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ver Preço do Imóvel</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Preencha seus dados para desbloquear o valor deste e de todos os outros imóveis exclusivos.</p>
+                  </div>
+
+                  <form onSubmit={handleLeadSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Completo</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={leadFormData.name}
+                        onChange={e => setLeadFormData({...leadFormData, name: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        placeholder="Seu nome"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp (com DDD)</label>
+                      <input 
+                        type="tel" 
+                        required
+                        value={leadFormData.whatsapp}
+                        onChange={e => setLeadFormData({...leadFormData, whatsapp: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        placeholder="11999999999"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
+                      <input 
+                        type="email" 
+                        required
+                        value={leadFormData.email}
+                        onChange={e => setLeadFormData({...leadFormData, email: e.target.value})}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                        placeholder="seu@email.com"
+                      />
+                    </div>
+                    
+                    <button 
+                      type="submit" 
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg mt-2 flex items-center justify-center gap-2"
+                    >
+                      <Check size={18} />
+                      Exibir preço do imóvel
+                    </button>
+                    <p className="text-xs text-center text-gray-400 mt-2">Seus dados estão seguros. Não enviamos spam.</p>
+                  </form>
+                </div>
+              </div>
             )}
         </div>
       )}

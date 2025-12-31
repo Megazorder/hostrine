@@ -1,25 +1,63 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Globe } from 'lucide-react';
+import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Globe, Settings, X, Check, Save, Ban, AlertTriangle } from 'lucide-react';
 import { storageService } from '../services/storage';
-import { Property, PropertyStatus } from '../types';
+import { Property, PropertyStatus, AdminProfile } from '../types';
 
 type SortKey = 'createdAt' | 'price' | 'status' | 'title';
 type SortDirection = 'asc' | 'desc';
 
 export const PropertyList: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Domain Config Modal State
+  const [showDomainModal, setShowDomainModal] = useState(false);
+  const [domainConfig, setDomainConfig] = useState({ subdomain: '', customDomain: '' });
+
+  // Manage/Delete Modal State
+  const [manageModal, setManageModal] = useState<{ isOpen: boolean; propertyId: string | null }>({
+    isOpen: false,
+    propertyId: null
+  });
 
   useEffect(() => {
     setProperties(storageService.getProperties());
+    const userProfile = storageService.getProfile();
+    setProfile(userProfile);
+    setDomainConfig({
+      subdomain: userProfile.subdomain || '',
+      customDomain: userProfile.customDomain || ''
+    });
   }, []);
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este imóvel?')) {
-      storageService.deleteProperty(id);
+  const handleOpenManageModal = (id: string) => {
+    setManageModal({ isOpen: true, propertyId: id });
+  };
+
+  const handleCloseManageModal = () => {
+    setManageModal({ isOpen: false, propertyId: null });
+  };
+
+  const handleUnpublish = () => {
+    if (manageModal.propertyId) {
+      const property = properties.find(p => p.id === manageModal.propertyId);
+      if (property) {
+        const updated = { ...property, status: PropertyStatus.DRAFT };
+        storageService.saveProperty(updated);
+        setProperties(storageService.getProperties());
+      }
+      handleCloseManageModal();
+    }
+  };
+
+  const handleDelete = () => {
+    if (manageModal.propertyId) {
+      storageService.deleteProperty(manageModal.propertyId);
       setProperties(storageService.getProperties());
+      handleCloseManageModal();
     }
   };
 
@@ -30,6 +68,16 @@ export const PropertyList: React.FC = () => {
       const updated = { ...property, status: PropertyStatus.AVAILABLE };
       storageService.saveProperty(updated);
       setProperties(storageService.getProperties());
+    }
+  };
+
+  const handleSaveDomain = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (profile) {
+      const updatedProfile = { ...profile, ...domainConfig };
+      storageService.saveProfile(updatedProfile);
+      setProfile(updatedProfile);
+      setShowDomainModal(false);
     }
   };
 
@@ -72,14 +120,25 @@ export const PropertyList: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400">Gerencie seu catálogo imobiliário</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link 
-            to="/showcase"
-            target="_blank"
-            className="flex items-center gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-          >
-            <Eye size={20} />
-            Ver Minha Vitrine
-          </Link>
+          <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm overflow-hidden">
+             <Link 
+              to="/showcase"
+              target="_blank"
+              className="flex items-center gap-2 px-4 py-2.5 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-r border-gray-200 dark:border-gray-700"
+              title={profile?.customDomain || `https://${profile?.subdomain || 'seu-site'}.luxe.app`}
+            >
+              <Eye size={20} />
+              Ver Minha Vitrine
+            </Link>
+            <button 
+              onClick={() => setShowDomainModal(true)}
+              className="px-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+              title="Configurar Domínio"
+            >
+              <Settings size={20} />
+            </button>
+          </div>
+
           <Link 
             to="/properties/new" 
             className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
@@ -204,16 +263,149 @@ export const PropertyList: React.FC = () => {
                     Editar
                   </Link>
                   <button 
-                    onClick={() => handleDelete(property.id)}
+                    onClick={() => handleOpenManageModal(property.id)}
                     className="flex-none flex items-center justify-center px-3 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 py-2 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
-                    title="Excluir"
+                    title="Gerenciar remoção"
                   >
-                    <Trash2 size={16} />
+                    <Ban size={16} />
                   </button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Domain Config Modal */}
+      {showDomainModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+               <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                 <Globe className="text-brand-600" size={24} />
+                 Personalizar Vitrine
+               </h3>
+               <button onClick={() => setShowDomainModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                 <X size={24} />
+               </button>
+            </div>
+            
+            <form onSubmit={handleSaveDomain} className="p-6 space-y-6">
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subdomínio Gratuito</label>
+                  <div className="flex items-center">
+                    <input 
+                      type="text" 
+                      value={domainConfig.subdomain}
+                      onChange={(e) => setDomainConfig({...domainConfig, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                      placeholder="seu-nome"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-right"
+                    />
+                    <span className="px-4 py-2 bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-lg font-medium">.luxe.app</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">URL: https://{domainConfig.subdomain || 'seu-nome'}.luxe.app</p>
+               </div>
+
+               <div className="relative">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="px-2 bg-white dark:bg-gray-800 text-sm text-gray-500">OU</span>
+                  </div>
+               </div>
+
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Domínio Personalizado</label>
+                  <div className="flex gap-2">
+                     <input 
+                        type="text" 
+                        value={domainConfig.customDomain}
+                        onChange={(e) => setDomainConfig({...domainConfig, customDomain: e.target.value})}
+                        placeholder="www.suaimobiliaria.com.br"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                     />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full inline-block"></span>
+                    Requer configuração de DNS (CNAME)
+                  </p>
+               </div>
+
+               <div className="pt-2 flex justify-end gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setShowDomainModal(false)}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium shadow-md flex items-center gap-2"
+                  >
+                    <Save size={18} />
+                    Salvar Alterações
+                  </button>
+               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage/Delete Modal */}
+      {manageModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+               <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                 <AlertTriangle className="text-yellow-500" size={24} />
+                 Gerenciar Imóvel
+               </h3>
+               <button onClick={handleCloseManageModal} className="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                 <X size={24} />
+               </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                O que você deseja fazer com este imóvel?
+              </p>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={handleUnpublish}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-xl border border-yellow-200 dark:border-yellow-800 transition-colors group"
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="font-bold">Despublicar</span>
+                    <span className="text-xs opacity-80">Mover para rascunho (ocultar da vitrine)</span>
+                  </div>
+                  <Ban size={20} className="text-yellow-600 dark:text-yellow-400" />
+                </button>
+
+                <button
+                  onClick={handleDelete}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-800 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-800 transition-colors group"
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="font-bold">Excluir Permanentemente</span>
+                    <span className="text-xs opacity-80">Esta ação não pode ser desfeita</span>
+                  </div>
+                  <Trash2 size={20} className="text-red-600 dark:text-red-400" />
+                </button>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                <button 
+                  onClick={handleCloseManageModal}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
