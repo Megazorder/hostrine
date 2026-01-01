@@ -1,10 +1,11 @@
-import { AdminProfile, Property, PropertyStatus, Lead } from '../types';
+import { AdminProfile, Property, PropertyStatus, Lead, LeadColumn } from '../types';
 
 const KEYS = {
   PROFILE: 'luxe_admin_profile',
   PROPERTIES: 'luxe_admin_properties',
   AUTH: 'luxe_admin_auth',
-  LEADS: 'luxe_admin_leads'
+  LEADS: 'luxe_admin_leads',
+  LEAD_COLUMNS: 'luxe_admin_lead_columns'
 };
 
 const DEFAULT_PROFILE: AdminProfile = {
@@ -22,7 +23,6 @@ const MOCK_PROPERTIES: Property[] = [
     title: 'Cobertura Duplex Jardins',
     price: 4500000,
     displayPrice: 'R$ 4.500.000',
-    priceVisibility: 'full',
     city: 'São Paulo',
     neighborhood: 'Jardins',
     lat: '-23.567',
@@ -46,8 +46,20 @@ const MOCK_PROPERTIES: Property[] = [
     viewersMax: 45,
     belowMarketPrice: true,
     enableLeadCapture: true,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    faq: [
+      { question: 'Aceita permuta?', answer: 'Estudamos permuta por imóveis de menor valor na região.' },
+      { question: 'O condomínio permite obras?', answer: 'Sim, permitidas de segunda a sexta em horário comercial.' }
+    ]
   }
+];
+
+const DEFAULT_COLUMNS: LeadColumn[] = [
+  { id: 'new', title: 'Novos Clientes', color: '#3b82f6', order: 0 },
+  { id: 'negotiating', title: 'Em Negociação', color: '#eab308', order: 1 },
+  { id: 'contacted', title: 'Contatados / Visita', color: '#8b5cf6', order: 2 },
+  { id: 'sold', title: 'Vendido / Fechado', color: '#22c55e', order: 3 },
+  { id: 'archived', title: 'Arquivado', color: '#64748b', order: 4 },
 ];
 
 const MOCK_LEADS: Lead[] = [
@@ -59,7 +71,11 @@ const MOCK_LEADS: Lead[] = [
     propertyId: '1',
     propertyTitle: 'Cobertura Duplex Jardins',
     createdAt: Date.now() - 86400000,
-    status: 'new'
+    status: 'new',
+    income: 35000,
+    downPayment: 500000,
+    fgts: 100000,
+    score: 'silver'
   }
 ];
 
@@ -114,7 +130,7 @@ export const storageService = {
     localStorage.setItem(KEYS.LEADS, JSON.stringify(leads));
   },
 
-  updateLeadStatus: (id: string, status: 'new' | 'contacted' | 'archived'): void => {
+  updateLeadStatus: (id: string, status: string): void => {
     const leads = storageService.getLeads();
     const index = leads.findIndex(l => l.id === id);
     if (index >= 0) {
@@ -127,6 +143,16 @@ export const storageService = {
     const leads = storageService.getLeads();
     const filtered = leads.filter(l => l.id !== id);
     localStorage.setItem(KEYS.LEADS, JSON.stringify(filtered));
+  },
+
+  // Columns (Kanban)
+  getLeadColumns: (): LeadColumn[] => {
+    const stored = localStorage.getItem(KEYS.LEAD_COLUMNS);
+    return stored ? JSON.parse(stored) : DEFAULT_COLUMNS;
+  },
+
+  saveLeadColumns: (columns: LeadColumn[]): void => {
+    localStorage.setItem(KEYS.LEAD_COLUMNS, JSON.stringify(columns));
   },
 
   // Simple Auth Simulation

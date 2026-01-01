@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { storageService } from '../services/storage';
-import { Property, AdminProfile, PropertyStatus, Lead } from '../types';
-import { X, Check, Lock } from 'lucide-react';
+import { Property, AdminProfile, PropertyStatus, Lead, LeadScore } from '../types';
+import { X, Check, Lock, Loader2, ArrowRight, Wallet, Banknote, Building2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const Showcase: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -11,10 +11,21 @@ export const Showcase: React.FC = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [isPricesUnlocked, setIsPricesUnlocked] = useState(false);
   
-  // Lead Capture Modal State
+  // FAQ State
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  
+  // Loading States
+  const [mainMediaLoading, setMainMediaLoading] = useState(true);
+  const [loadedImages, setLoadedImages] = useState<{[key: string]: boolean}>({});
+
+  // Lead Capture Modal State (Multi-step)
   const [showLeadModal, setShowLeadModal] = useState(false);
-  const [leadFormData, setLeadFormData] = useState({ name: '', whatsapp: '', email: '' });
+  const [leadStep, setLeadStep] = useState(1);
   const [leadPropertyId, setLeadPropertyId] = useState<string | null>(null);
+  
+  // Form Data
+  const [leadContact, setLeadContact] = useState({ name: '', whatsapp: '', email: '' });
+  const [leadFinancial, setLeadFinancial] = useState({ income: '', downPayment: '', fgts: '' });
   
   // Viewer simulation state
   const [viewerCount, setViewerCount] = useState(0);
@@ -33,10 +44,15 @@ export const Showcase: React.FC = () => {
   useEffect(() => {
     setProperties(storageService.getProperties());
     setProfile(storageService.getProfile());
-    // Check if prices are already unlocked in this session/browser
+    // Check if leads are already unlocked in this session/browser
     const unlocked = localStorage.getItem('luxe_prices_unlocked') === 'true';
     setIsPricesUnlocked(unlocked);
   }, []);
+
+  useEffect(() => {
+    // Reset main media loading when changing index or property
+    setMainMediaLoading(true);
+  }, [currentMediaIndex, selectedProperty]);
 
   useEffect(() => {
     if (!selectedProperty) {
@@ -73,69 +89,101 @@ export const Showcase: React.FC = () => {
     return groups;
   }, [activeProperties]);
 
-  const formatPrice = (p: Property) => {
-    if (isPricesUnlocked) return p.displayPrice;
-    if (p.priceVisibility === 'hidden') return 'Sob Consulta';
-    
-    if (p.priceVisibility === 'masked') {
-       const priceStr = p.price.toString();
-       const len = priceStr.length;
-       let masked = '';
-
-       if (len === 5) {
-         // 5 digits (e.g., 90000) -> Show 3rd and 4th: **00*
-         masked = `**${priceStr.substring(2, 4)}*`;
-       } else if (len === 6) {
-         // 6 digits (e.g., 500000) -> Show 2nd and 3rd: *00***
-         masked = `*${priceStr.substring(1, 3)}***`;
-       } else if (len === 7) {
-         // 7 digits (e.g., 1500000) -> Show 3rd and 4th: **00***
-         masked = `**${priceStr.substring(2, 4)}***`;
-       } else {
-         // Fallback
-         masked = '**.***';
-       }
-       
-       return `R$ ${masked}`;
-    }
-    return p.displayPrice;
+  const handleImageLoad = (id: string) => {
+    setLoadedImages(prev => ({ ...prev, [id]: true }));
   };
 
-  const handlePriceClick = (e: React.MouseEvent, property: Property) => {
-    e.stopPropagation();
-    if (isPricesUnlocked) return;
-    
-    if (property.priceVisibility === 'hidden' || property.priceVisibility === 'masked') {
-       if (property.enableLeadCapture) {
-         setLeadPropertyId(property.id);
-         setShowLeadModal(true);
-       }
+  const handleSimulatorClick = () => {
+    if (!selectedProperty) return;
+
+    if (selectedProperty.enableLeadCapture && !isPricesUnlocked) {
+      setLeadPropertyId(selectedProperty.id);
+      setLeadStep(1); // Reset to step 1
+      setShowLeadModal(true);
+    } else {
+      setShowCalculator(true);
     }
+  };
+
+  const calculateLeadScore = (price: number, income: number, downPayment: number, fgts: number): LeadScore => {
+    const totalEntry = downPayment + fgts;
+    const entryRule = totalEntry >= (price * 0.2);
+
+    // SAC Calculation Estimate
+    const financedAmount = price - totalEntry;
+    if (financedAmount <= 0) return 'gold'; // Fully paid entry
+
+    const annualRate = 0.10; // 10% a.a.
+    const monthlyRate = annualRate / 12;
+    const months = 360; // 30 years
+    
+    const amortization = financedAmount / months;
+    const interest = financedAmount * monthlyRate;
+    const firstInstallment = amortization + interest;
+    
+    const maxInstallment = income * 0.3; // 30% of income rule
+    const installmentRule = firstInstallment <= maxInstallment;
+
+    if (entryRule && installmentRule) return 'gold';
+    if (!entryRule && installmentRule) return 'silver';
+    
+    return 'curious';
   };
 
   const handleLeadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!leadFormData.name || !leadFormData.whatsapp || !leadFormData.email) return;
-
-    const property = properties.find(p => p.id === leadPropertyId);
     
+    const property = properties.find(p => p.id === leadPropertyId);
+    if (!property) return;
+
+    // Financial Values Parsing
+    const incomeVal = Number(leadFinancial.income) || 0;
+    const downPaymentVal = Number(leadFinancial.downPayment) || 0;
+    const fgtsVal = Number(leadFinancial.fgts) || 0;
+
+    // Calculate Score
+    const score = calculateLeadScore(property.price, incomeVal, downPaymentVal, fgtsVal);
+    
+    // Get columns to find the first one
+    const columns = storageService.getLeadColumns();
+    const defaultStatus = columns.length > 0 ? columns[0].id : 'new';
+
     const newLead: Lead = {
       id: Math.random().toString(36).substr(2, 9),
-      name: leadFormData.name,
-      whatsapp: leadFormData.whatsapp,
-      email: leadFormData.email,
+      name: leadContact.name,
+      whatsapp: leadContact.whatsapp,
+      email: leadContact.email,
       propertyId: leadPropertyId || '',
       propertyTitle: property?.title || 'Desconhecido',
       createdAt: Date.now(),
-      status: 'new'
+      status: defaultStatus,
+      income: incomeVal,
+      downPayment: downPaymentVal,
+      fgts: fgtsVal,
+      score: score
     };
 
     storageService.saveLead(newLead);
     localStorage.setItem('luxe_prices_unlocked', 'true');
     setIsPricesUnlocked(true);
     setShowLeadModal(false);
-    setLeadFormData({ name: '', whatsapp: '', email: '' });
-    alert('Obrigado! Os preços agora estão visíveis.');
+    
+    // Reset forms
+    setLeadContact({ name: '', whatsapp: '', email: '' });
+    setLeadFinancial({ income: '', downPayment: '', fgts: '' });
+    setLeadStep(1);
+
+    // Automatically open calculator after lead capture
+    setShowCalculator(true);
+  };
+
+  const nextStep = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (leadStep === 1) {
+       if (leadContact.name && leadContact.whatsapp && leadContact.email) {
+         setLeadStep(2);
+       }
+    }
   };
 
   const handleOpenProperty = (property: Property) => {
@@ -143,6 +191,7 @@ export const Showcase: React.FC = () => {
     setCurrentMediaIndex(0);
     setCalcEntry(property.price * 0.2);
     setCalcResult(null);
+    setExpandedFaq(null);
     window.scrollTo(0, 0);
   };
 
@@ -193,9 +242,21 @@ export const Showcase: React.FC = () => {
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const minSwipeDistance = 50;
-    if (distance > minSwipeDistance && selectedProperty) setCurrentMediaIndex((prev) => (prev + 1) % selectedProperty.media.length);
-    if (distance < -minSwipeDistance && selectedProperty) setCurrentMediaIndex((prev) => (prev - 1 + selectedProperty.media.length) % selectedProperty.media.length);
+    const minSwipeDistance = 50; // Minimum distance to be considered a swipe
+    
+    if (distance > minSwipeDistance && selectedProperty) {
+      // Swiped Left -> Next Image
+      nextSlide();
+    }
+    
+    if (distance < -minSwipeDistance && selectedProperty) {
+      // Swiped Right -> Previous Image
+      prevSlide();
+    }
+  };
+  
+  const toggleFaq = (index: number) => {
+    setExpandedFaq(expandedFaq === index ? null : index);
   };
 
   if (!profile) return <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center">Carregando...</div>;
@@ -215,6 +276,8 @@ export const Showcase: React.FC = () => {
         @keyframes slideInBottom { 0% { transform: translateY(100px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.4s ease-in-out; }
+        .shimmer { background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
 
       {/* Navigation */}
@@ -240,9 +303,9 @@ export const Showcase: React.FC = () => {
         </div>
       </nav>
 
-      {/* HOME VIEW */}
+      {/* HOME VIEW and PROPERTY LIST (Hidden when selectedProperty) */}
       <div className={selectedProperty ? 'hidden' : 'block'}>
-          <header className="relative min-h-[60vh] flex flex-col justify-center items-center text-center px-4 overflow-hidden pt-16">
+           <header className="relative min-h-[60vh] flex flex-col justify-center items-center text-center px-4 overflow-hidden pt-16">
             <div className="absolute inset-0 z-0">
               <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1920&q=80" alt="Background" className="w-full h-full object-cover opacity-30" decoding="async" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/80 to-transparent"></div>
@@ -274,26 +337,27 @@ export const Showcase: React.FC = () => {
                                 <div key={imovel.id} className="property-card min-w-[300px] md:min-w-[360px] bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 relative snap-center group">
                                     <div className="relative h-64 bg-slate-900 overflow-hidden cursor-pointer" onClick={() => handleOpenProperty(imovel)}>
                                         {imovel.media.length > 0 ? (
-                                           <img src={imovel.media[0].url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={imovel.title} loading="lazy" decoding="async" />
+                                           <>
+                                             {!loadedImages[imovel.id] && (
+                                                <div className="absolute inset-0 bg-slate-800 shimmer z-0"></div>
+                                             )}
+                                             <img 
+                                               src={imovel.media[0].url} 
+                                               className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-110 ${loadedImages[imovel.id] ? 'opacity-100' : 'opacity-0'}`} 
+                                               alt={imovel.title} 
+                                               loading="lazy" 
+                                               decoding="async"
+                                               onLoad={() => handleImageLoad(imovel.id)}
+                                             />
+                                           </>
                                         ) : (
                                            <div className="w-full h-full bg-slate-800 flex items-center justify-center text-gray-500">Sem Foto</div>
                                         )}
                                         <div className="absolute top-3 left-3 badge px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-white z-10">{imovel.type}</div>
                                         <div className="absolute bottom-3 left-3 badge px-3 py-1 rounded text-sm font-bold text-white z-10 border-blue-500/50 flex flex-col items-start gap-1">
-                                            <span 
-                                                onClick={(e) => handlePriceClick(e, imovel)}
-                                                className={!isPricesUnlocked && imovel.enableLeadCapture && (imovel.priceVisibility === 'masked' || imovel.priceVisibility === 'hidden') ? 'cursor-pointer hover:text-blue-400 transition-colors' : ''}
-                                            >
-                                                {formatPrice(imovel)}
+                                            <span>
+                                                {imovel.displayPrice}
                                             </span>
-                                            {!isPricesUnlocked && imovel.enableLeadCapture && (imovel.priceVisibility === 'masked' || imovel.priceVisibility === 'hidden') && (
-                                              <button
-                                                  onClick={(e) => handlePriceClick(e, imovel)}
-                                                  className="text-[10px] text-blue-300 hover:text-white uppercase font-bold tracking-wider flex items-center gap-1 cursor-pointer"
-                                              >
-                                                  <Lock size={10} /> Revelar preço
-                                              </button>
-                                            )}
                                             {imovel.belowMarketPrice && (
                                                 <span className="text-[10px] text-green-400 font-bold bg-green-900/80 px-1.5 py-0.5 rounded border border-green-500/50 animate-pulse">
                                                     ABAIXO DO MERCADO
@@ -359,20 +423,9 @@ export const Showcase: React.FC = () => {
                     <div className="flex flex-col items-end gap-3">
                         <div className="text-right">
                             <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Valor de Investimento</p>
-                            <p 
-                                className={`text-4xl font-bold text-white ${!isPricesUnlocked && selectedProperty.enableLeadCapture && (selectedProperty.priceVisibility === 'masked' || selectedProperty.priceVisibility === 'hidden') ? 'cursor-pointer hover:text-blue-400 transition-colors' : ''}`}
-                                onClick={(e) => handlePriceClick(e, selectedProperty)}
-                            >
-                                {formatPrice(selectedProperty)}
+                            <p className="text-4xl font-bold text-white">
+                                {selectedProperty.displayPrice}
                             </p>
-                            {!isPricesUnlocked && selectedProperty.enableLeadCapture && (selectedProperty.priceVisibility === 'masked' || selectedProperty.priceVisibility === 'hidden') && (
-                              <button
-                                  onClick={(e) => handlePriceClick(e, selectedProperty)}
-                                  className="text-xs text-blue-300 hover:text-white uppercase font-bold tracking-wider flex items-center justify-end gap-1 cursor-pointer w-full mt-1"
-                              >
-                                  <Lock size={12} /> Revelar preço
-                              </button>
-                            )}
                             {selectedProperty.belowMarketPrice && (
                                 <p className="text-sm font-bold text-green-400 mt-1 uppercase tracking-wider">★ Preço abaixo do mercado</p>
                             )}
@@ -388,11 +441,30 @@ export const Showcase: React.FC = () => {
                            onTouchMove={handleTouchMove}
                            onTouchEnd={handleTouchEnd}
                         >
-                             <div className="w-full h-[300px] md:h-[500px] flex items-center justify-center bg-gray-900 select-none">
+                             <div className="w-full h-[300px] md:h-[500px] flex items-center justify-center bg-gray-900 select-none relative">
+                                 {mainMediaLoading && (
+                                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                                         <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                                     </div>
+                                 )}
+                                 
                                  {selectedProperty.media[currentMediaIndex]?.type === 'video' ? (
-                                    <video src={selectedProperty.media[currentMediaIndex].url} controls autoPlay muted className="w-full h-full object-contain pointer-events-auto"></video>
+                                    <video 
+                                        src={selectedProperty.media[currentMediaIndex].url} 
+                                        controls 
+                                        autoPlay 
+                                        muted 
+                                        className="w-full h-full object-contain pointer-events-auto"
+                                        onLoadedData={() => setMainMediaLoading(false)}
+                                    ></video>
                                  ) : (
-                                    <img src={selectedProperty.media[currentMediaIndex]?.url} className="w-full h-full object-cover pointer-events-none" alt="Property" decoding="async" />
+                                    <img 
+                                        src={selectedProperty.media[currentMediaIndex]?.url} 
+                                        className={`w-full h-full object-cover pointer-events-none transition-opacity duration-500 ${mainMediaLoading ? 'opacity-0' : 'opacity-100'}`} 
+                                        alt="Property" 
+                                        decoding="async"
+                                        onLoad={() => setMainMediaLoading(false)}
+                                    />
                                  )}
                              </div>
                              {selectedProperty.media.length > 1 && (
@@ -401,7 +473,7 @@ export const Showcase: React.FC = () => {
                                     <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black p-3 rounded-full text-white backdrop-blur-sm transition hidden md:block">›</button>
                                 </>
                              )}
-                             <div className="absolute bottom-4 right-4 bg-black/60 px-3 py-1 rounded-full text-xs font-bold text-white backdrop-blur-sm pointer-events-none">
+                             <div className="absolute bottom-4 right-4 bg-black/60 px-3 py-1 rounded-full text-xs font-bold text-white backdrop-blur-sm pointer-events-none z-20">
                                  {currentMediaIndex + 1} / {selectedProperty.media.length}
                              </div>
                         </div>
@@ -442,6 +514,31 @@ export const Showcase: React.FC = () => {
                                 <div className="absolute bottom-0 left-0 w-full h-5 backdrop-blur-[3px] z-10 border-t border-white/5 bg-gradient-to-t from-slate-900/60 to-transparent pointer-events-none"></div>
                             </div>
                         </div>
+
+                        {/* FAQ Section */}
+                        {selectedProperty.faq && selectedProperty.faq.length > 0 && (
+                          <div className="bg-slate-800/50 p-8 rounded-2xl border border-white/5">
+                              <h3 className="text-xl font-bold mb-6">Perguntas Frequentes</h3>
+                              <div className="space-y-3">
+                                {selectedProperty.faq.map((item, idx) => (
+                                  <div key={idx} className="border border-white/10 rounded-xl overflow-hidden bg-slate-900/50">
+                                    <button 
+                                      onClick={() => toggleFaq(idx)}
+                                      className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5 transition-colors"
+                                    >
+                                      <span className="font-bold text-gray-200">{item.question}</span>
+                                      {expandedFaq === idx ? <ChevronUp size={20} className="text-blue-400" /> : <ChevronDown size={20} className="text-gray-500" />}
+                                    </button>
+                                    {expandedFaq === idx && (
+                                      <div className="p-4 pt-0 text-gray-400 border-t border-white/5 bg-black/20">
+                                        {item.answer}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                          </div>
+                        )}
                     </div>
 
                     <div className="lg:col-span-1">
@@ -467,7 +564,7 @@ export const Showcase: React.FC = () => {
                                 </a>
                                 
                                 {selectedProperty.simulador && (
-                                    <button onClick={() => setShowCalculator(true)} className="w-full border border-white/20 text-white font-semibold py-3 rounded-xl hover:bg-white/5 transition text-sm flex items-center justify-center gap-2">
+                                    <button onClick={handleSimulatorClick} className="w-full border border-white/20 text-white font-semibold py-3 rounded-xl hover:bg-white/5 transition text-sm flex items-center justify-center gap-2">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                                         Simular Financiamento
                                     </button>
@@ -529,68 +626,139 @@ export const Showcase: React.FC = () => {
                 </div>
             )}
             
-            {/* Lead Capture Modal */}
+            {/* Lead Capture Modal (Multi-Step) */}
             {showLeadModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-slate-700 shadow-2xl relative">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-slate-700 shadow-2xl relative overflow-hidden">
                   <button 
                     onClick={() => setShowLeadModal(false)} 
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
                   >
                     <X size={20} />
                   </button>
                   
-                  <div className="text-center mb-6">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Lock className="text-blue-600 dark:text-blue-400" size={24} />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ver Preço do Imóvel</h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">Preencha seus dados para desbloquear o valor deste e de todos os outros imóveis exclusivos.</p>
+                  {/* Step Progress */}
+                  <div className="flex justify-center mb-6 gap-2">
+                     <div className={`h-1 flex-1 rounded-full transition-colors ${leadStep >= 1 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
+                     <div className={`h-1 flex-1 rounded-full transition-colors ${leadStep >= 2 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
+                     <div className={`h-1 flex-1 rounded-full transition-colors ${leadStep >= 3 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
                   </div>
 
-                  <form onSubmit={handleLeadSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Completo</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={leadFormData.name}
-                        onChange={e => setLeadFormData({...leadFormData, name: e.target.value})}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        placeholder="Seu nome"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp (com DDD)</label>
-                      <input 
-                        type="tel" 
-                        required
-                        value={leadFormData.whatsapp}
-                        onChange={e => setLeadFormData({...leadFormData, whatsapp: e.target.value})}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        placeholder="11999999999"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
-                      <input 
-                        type="email" 
-                        required
-                        value={leadFormData.email}
-                        onChange={e => setLeadFormData({...leadFormData, email: e.target.value})}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-                        placeholder="seu@email.com"
-                      />
-                    </div>
+                  <div className="text-center mb-4">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                      {leadStep === 1 ? 'Simular Financiamento' : leadStep === 2 ? 'Análise de Crédito' : 'Confirmar'}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      {leadStep === 1 ? 'Preencha seus dados para acessar o simulador.' : leadStep === 2 ? 'Entenda seu potencial de compra.' : 'Tudo pronto para simular.'}
+                    </p>
+                  </div>
+
+                  <form onSubmit={leadStep === 1 ? nextStep : handleLeadSubmit} className="space-y-4">
                     
-                    <button 
-                      type="submit" 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg mt-2 flex items-center justify-center gap-2"
-                    >
-                      <Check size={18} />
-                      Exibir preço do imóvel
-                    </button>
-                    <p className="text-xs text-center text-gray-400 mt-2">Seus dados estão seguros. Não enviamos spam.</p>
+                    {/* Step 1: Contact Info */}
+                    {leadStep === 1 && (
+                      <div className="animate-fadeIn space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Completo</label>
+                          <input 
+                            type="text" 
+                            required
+                            value={leadContact.name}
+                            onChange={e => setLeadContact({...leadContact, name: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                            placeholder="Seu nome"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp (com DDD)</label>
+                          <input 
+                            type="tel" 
+                            required
+                            value={leadContact.whatsapp}
+                            onChange={e => setLeadContact({...leadContact, whatsapp: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                            placeholder="11999999999"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
+                          <input 
+                            type="email" 
+                            required
+                            value={leadContact.email}
+                            onChange={e => setLeadContact({...leadContact, email: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                            placeholder="seu@email.com"
+                          />
+                        </div>
+                        <button 
+                          type="submit" 
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg mt-2 flex items-center justify-center gap-2"
+                        >
+                          Continuar <ArrowRight size={18} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Step 2: Financial Info */}
+                    {leadStep === 2 && (
+                       <div className="animate-fadeIn space-y-4">
+                         <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2"><Banknote size={16} /> Renda Mensal Familiar (R$)</label>
+                          <input 
+                            type="number" 
+                            required
+                            min="0"
+                            value={leadFinancial.income}
+                            onChange={e => setLeadFinancial({...leadFinancial, income: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                            placeholder="Ex: 15000"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2"><Wallet size={16} /> Entrada Disponível (R$)</label>
+                          <input 
+                            type="number" 
+                            required
+                            min="0"
+                            value={leadFinancial.downPayment}
+                            onChange={e => setLeadFinancial({...leadFinancial, downPayment: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                            placeholder="Recursos próprios"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2"><Building2 size={16} /> Saldo FGTS (R$)</label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            value={leadFinancial.fgts}
+                            onChange={e => setLeadFinancial({...leadFinancial, fgts: e.target.value})}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+                            placeholder="Opcional"
+                          />
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                            <button 
+                              type="button"
+                              onClick={() => setLeadStep(1)}
+                              className="w-1/3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white font-bold py-3 rounded-lg transition-colors"
+                            >
+                              Voltar
+                            </button>
+                            <button 
+                              type="submit" 
+                              className="w-2/3 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2"
+                            >
+                              <Check size={18} /> Ver Resultado
+                            </button>
+                        </div>
+                       </div>
+                    )}
+                    
+                    <p className="text-xs text-center text-gray-400 mt-2">
+                        {leadStep === 2 ? 'Usaremos estes dados apenas para calcular seu perfil de crédito imobiliário.' : 'Seus dados estão seguros.'}
+                    </p>
                   </form>
                 </div>
               </div>

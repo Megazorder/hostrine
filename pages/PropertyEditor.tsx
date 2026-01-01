@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, X, Image as ImageIcon, Loader2, UploadCloud, CheckCircle2, Trash2, Tag, Eye, EyeOff, FileText, Lock } from 'lucide-react';
+import { Save, ArrowLeft, X, Image as ImageIcon, Loader2, UploadCloud, CheckCircle2, Trash2, Tag, Eye, EyeOff, FileText, Lock, MessageCircleQuestion, Plus } from 'lucide-react';
 import { storageService } from '../services/storage';
-import { Property, PropertyStatus, MediaItem } from '../types';
+import { Property, PropertyStatus, MediaItem, PropertyFAQ } from '../types';
 
 const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   title: '',
   price: 0,
   displayPrice: '',
-  priceVisibility: 'full',
   city: '',
   neighborhood: '',
   lat: '',
@@ -28,7 +27,8 @@ const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
   viewersMin: 113,
   viewersMax: 284,
   belowMarketPrice: false,
-  enableLeadCapture: false
+  enableLeadCapture: false,
+  faq: []
 };
 
 export const PropertyEditor: React.FC = () => {
@@ -49,7 +49,7 @@ export const PropertyEditor: React.FC = () => {
     if (id) {
       const existing = storageService.getPropertyById(id);
       if (existing) {
-        setFormData(existing);
+        setFormData({ ...EMPTY_PROPERTY, ...existing });
       } else {
         navigate('/');
       }
@@ -81,6 +81,29 @@ export const PropertyEditor: React.FC = () => {
 
   const removeFeature = (index: number) => {
     setFormData((prev: any) => ({ ...prev, features: prev.features.filter((_: any, i: number) => i !== index) }));
+  };
+
+  // FAQ Management
+  const addFaq = () => {
+    setFormData((prev: any) => ({
+      ...prev,
+      faq: [...(prev.faq || []), { question: '', answer: '' }]
+    }));
+  };
+
+  const updateFaq = (index: number, field: keyof PropertyFAQ, value: string) => {
+    setFormData((prev: any) => {
+      const newFaq = [...(prev.faq || [])];
+      newFaq[index] = { ...newFaq[index], [field]: value };
+      return { ...prev, faq: newFaq };
+    });
+  };
+
+  const removeFaq = (index: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      faq: prev.faq.filter((_: any, i: number) => i !== index)
+    }));
   };
 
   const addMedia = (url: string) => {
@@ -213,24 +236,9 @@ export const PropertyEditor: React.FC = () => {
               <input required type="number" name="price" value={formData.price} onChange={handlePriceChange} className={inputClass} />
             </div>
 
-            <div className="flex gap-4">
-               <div className="flex-1">
-                 <label className={labelClass}>Preço Exibição</label>
-                 <input disabled name="displayPrice" value={formData.displayPrice} className={`${inputClass} bg-gray-50 dark:bg-gray-900 text-gray-500`} />
-               </div>
-               <div className="w-1/3">
-                 <label className={labelClass}>Visibilidade</label>
-                 <div className="relative">
-                   <select name="priceVisibility" value={formData.priceVisibility || 'full'} onChange={handleChange} className={`${inputClass} appearance-none`}>
-                     <option value="full">Visível</option>
-                     <option value="masked">Mascarado</option>
-                     <option value="hidden">Sob Consulta</option>
-                   </select>
-                   <div className="absolute right-3 top-2.5 pointer-events-none text-gray-500">
-                     {formData.priceVisibility === 'hidden' ? <EyeOff size={16} /> : <Eye size={16} />}
-                   </div>
-                 </div>
-               </div>
+            <div>
+               <label className={labelClass}>Preço Exibição</label>
+               <input disabled name="displayPrice" value={formData.displayPrice} className={`${inputClass} bg-gray-50 dark:bg-gray-900 text-gray-500`} />
             </div>
 
             <div>
@@ -262,7 +270,7 @@ export const PropertyEditor: React.FC = () => {
             <div className="flex items-center gap-3">
               <input type="checkbox" id="enableLeadCapture" name="enableLeadCapture" checked={formData.enableLeadCapture || false} onChange={handleChange} className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500" />
               <div className="flex items-center gap-2">
-                 <label htmlFor="enableLeadCapture" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Ativar Captura de Leads ao clicar no preço</label>
+                 <label htmlFor="enableLeadCapture" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Exigir formulário para ver Simulador</label>
                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Lock size={10} /> Lead Magnet</span>
               </div>
             </div>
@@ -411,6 +419,67 @@ export const PropertyEditor: React.FC = () => {
                  </div>
                </div>
              ))}
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div className={cardClass}>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <MessageCircleQuestion size={20} />
+              Perguntas Frequentes (FAQ)
+            </h2>
+            <button 
+              type="button" 
+              onClick={addFaq}
+              className="text-sm flex items-center gap-1 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 px-3 py-1.5 rounded-lg hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-colors"
+            >
+              <Plus size={16} /> Adicionar Pergunta
+            </button>
+          </div>
+
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 leading-relaxed">
+            <span className="font-bold text-gray-700 dark:text-gray-300">Opcional.</span> Adicione perguntas frequentes para antecipar dúvidas dos clientes. Elas serão exibidas ao final da página do imóvel.
+          </p>
+          
+          <div className="space-y-4">
+            {(!formData.faq || formData.faq.length === 0) && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-4">Nenhuma pergunta frequente cadastrada.</p>
+            )}
+            
+            {formData.faq && formData.faq.map((item: PropertyFAQ, idx: number) => (
+              <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700 relative group">
+                <button 
+                  type="button"
+                  onClick={() => removeFaq(idx)}
+                  className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors p-1"
+                >
+                  <X size={16} />
+                </button>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="text-xs uppercase text-gray-500 dark:text-gray-400 font-bold mb-1 block">Pergunta</label>
+                    <input 
+                      type="text" 
+                      value={item.question} 
+                      onChange={(e) => updateFaq(idx, 'question', e.target.value)}
+                      placeholder="Ex: Aceita permuta?"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase text-gray-500 dark:text-gray-400 font-bold mb-1 block">Resposta</label>
+                    <textarea 
+                      rows={2}
+                      value={item.answer} 
+                      onChange={(e) => updateFaq(idx, 'answer', e.target.value)}
+                      placeholder="Ex: Sim, estudamos permuta..."
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

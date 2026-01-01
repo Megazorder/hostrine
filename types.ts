@@ -12,14 +12,16 @@ export interface MediaItem {
   url: string;
 }
 
-export type PriceVisibility = 'full' | 'masked' | 'hidden';
+export interface PropertyFAQ {
+  question: string;
+  answer: string;
+}
 
 export interface Property {
   id: string;
   title: string;
   price: number;
   displayPrice: string; // Formatted string for display
-  priceVisibility: PriceVisibility;
   enableLeadCapture?: boolean; // New field for Lead Capture
   city: string;
   neighborhood: string;
@@ -41,7 +43,17 @@ export interface Property {
   viewersMax: number;
   belowMarketPrice?: boolean; 
   createdAt: number;
+  faq?: PropertyFAQ[];
 }
+
+export interface LeadColumn {
+  id: string;
+  title: string;
+  color: string; // Hex or Tailwind class reference
+  order: number;
+}
+
+export type LeadScore = 'gold' | 'silver' | 'curious' | 'unscored';
 
 export interface Lead {
   id: string;
@@ -51,7 +63,12 @@ export interface Lead {
   propertyId: string;
   propertyTitle: string;
   createdAt: number;
-  status: 'new' | 'contacted' | 'archived';
+  status: string;
+  // Financial Data
+  income?: number;
+  downPayment?: number;
+  fgts?: number;
+  score?: LeadScore;
 }
 
 export interface AdminProfile {

@@ -195,7 +195,10 @@ export const PropertyList: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {sortedProperties.map((property) => (
-            <div key={property.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col group">
+            <div 
+              key={property.id} 
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col group"
+            >
               <div className="relative h-48 bg-gray-100 dark:bg-gray-900">
                 <img 
                   src={property.media[0]?.url || 'https://via.placeholder.com/400x300?text=Sem+Imagem'} 
