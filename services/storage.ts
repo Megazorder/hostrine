@@ -75,7 +75,8 @@ const MOCK_LEADS: Lead[] = [
     income: 35000,
     downPayment: 500000,
     fgts: 100000,
-    score: 'silver'
+    score: 'silver',
+    documents: []
   }
 ];
 
@@ -128,6 +129,15 @@ export const storageService = {
     const leads = storageService.getLeads();
     leads.unshift(lead);
     localStorage.setItem(KEYS.LEADS, JSON.stringify(leads));
+  },
+  
+  updateLead: (updatedLead: Lead): void => {
+    const leads = storageService.getLeads();
+    const index = leads.findIndex(l => l.id === updatedLead.id);
+    if (index >= 0) {
+      leads[index] = updatedLead;
+      localStorage.setItem(KEYS.LEADS, JSON.stringify(leads));
+    }
   },
 
   updateLeadStatus: (id: string, status: string): void => {

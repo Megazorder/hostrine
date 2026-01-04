@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UserCircle, LogOut, Menu, X, PlusCircle, Moon, Sun, BarChart3, Users } from 'lucide-react';
+import { LayoutDashboard, UserCircle, LogOut, Menu, X, PlusCircle, Moon, Sun, BarChart3, Users, FileInput } from 'lucide-react';
 import { storageService } from '../services/storage';
 
 export const Layout: React.FC = () => {
@@ -119,6 +119,8 @@ export const Layout: React.FC = () => {
           <NavItem to="/" icon={LayoutDashboard} label="Imóveis" end />
           <NavItem to="/analytics" icon={BarChart3} label="Análise" />
           <NavItem to="/leads" icon={Users} label="Leads" />
+          <NavItem to="/form-generator" icon={FileInput} label="Solicitar Docs" />
+          <div className="border-t border-gray-100 dark:border-gray-700 my-2 pt-2"></div>
           <NavItem to="/properties/new" icon={PlusCircle} label="Novo Imóvel" />
           <NavItem to="/profile" icon={UserCircle} label="Meu Perfil" />
         </nav>

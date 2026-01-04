@@ -8,6 +8,8 @@ import { Showcase } from './pages/Showcase';
 import { Login } from './pages/Login';
 import { Analytics } from './pages/Analytics';
 import { Leads } from './pages/Leads';
+import { ClientUpload } from './pages/ClientUpload';
+import { FormGenerator } from './pages/FormGenerator';
 
 const App: React.FC = () => {
   return (
@@ -19,13 +21,16 @@ const App: React.FC = () => {
           <Route index element={<PropertyList />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="leads" element={<Leads />} />
+          <Route path="form-generator" element={<FormGenerator />} />
           <Route path="properties/new" element={<PropertyEditor />} />
           <Route path="properties/:id" element={<PropertyEditor />} />
           <Route path="profile" element={<ProfileEditor />} />
         </Route>
         
-        {/* Showcase route outside layout to have its own design */}
+        {/* Showcase and Client Portal routes outside layout */}
         <Route path="/showcase" element={<Showcase />} />
+        <Route path="/upload/:id" element={<ClientUpload />} />
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

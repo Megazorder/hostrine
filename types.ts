@@ -55,6 +55,23 @@ export interface LeadColumn {
 
 export type LeadScore = 'gold' | 'silver' | 'curious' | 'unscored';
 
+export interface LeadDocument {
+  id: string;
+  name: string;
+  url: string; // Base64 or URL
+  type: 'pdf' | 'image' | 'other';
+  uploadedAt: number;
+}
+
+export interface ChecklistItemState {
+  checked: boolean;
+  fileUrl?: string;
+  fileName?: string;
+  uploadedAt?: number;
+}
+
+export type IncomeType = 'CLT' | 'Empresario' | 'Autonomo';
+
 export interface Lead {
   id: string;
   name: string;
@@ -69,6 +86,22 @@ export interface Lead {
   downPayment?: number;
   fgts?: number;
   score?: LeadScore;
+  
+  // Extended Profile Data
+  address?: string;
+  cpf?: string;
+  rg?: string;
+  profession?: string;
+  maritalStatus?: 'Solteiro' | 'Casado' | 'Divorciado' | 'Viuvo' | 'UniaoEstavel';
+  spouseName?: string;
+  spouseCpf?: string;
+  
+  // Documents & Checklist
+  incomeType?: IncomeType;
+  checklist?: Record<string, ChecklistItemState>; // Keyed by item ID (e.g., 'doc_rg': { checked: true, fileUrl: '...' })
+  documents?: LeadDocument[]; // Legacy / General docs
+  hasNewUploads?: boolean; // Notification flag for broker
+  lastRequestDate?: number; // Timestamp of last document request link sent
 }
 
 export interface AdminProfile {
