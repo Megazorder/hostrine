@@ -1,5 +1,6 @@
 {
   "name": "Painel administrativo",
   "description": "Administrative panel for managing real estate properties, media assets, and broker profile information.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

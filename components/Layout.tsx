@@ -49,8 +49,8 @@ export const Layout: React.FC = () => {
       className={({ isActive }) =>
         `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${
           isActive
-            ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400'
-            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'
+            ? 'bg-gray-800 text-white'
+            : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
         }`
       }
     >
@@ -62,40 +62,40 @@ export const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col md:flex-row font-sans transition-colors duration-200">
       {/* Mobile Header */}
-      <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+      <div className="md:hidden bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <button onClick={toggleMenu} className="p-2 -ml-2 text-gray-600 dark:text-gray-300">
+          <button onClick={toggleMenu} className="p-2 -ml-2 text-gray-400 hover:text-white">
              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-800 dark:text-white text-sm">Painel</span>
+            <span className="font-bold text-white text-sm">Painel</span>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-           <button onClick={toggleTheme} className="text-gray-500 dark:text-gray-400 p-1">
+           <button onClick={toggleTheme} className="text-gray-400 hover:text-white p-1">
              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
            </button>
            <div onClick={() => navigate('/profile')} className="flex items-center gap-2 cursor-pointer ml-1">
-             <span className="text-sm font-semibold text-gray-900 dark:text-white max-w-[100px] truncate">{profile.name}</span>
-             <img src={profile.photoUrl} className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600" alt="Perfil" />
+             <span className="text-sm font-semibold text-white max-w-[100px] truncate">{profile.name}</span>
+             <img src={profile.photoUrl} className="w-8 h-8 rounded-full object-cover border border-gray-700" alt="Perfil" />
            </div>
         </div>
       </div>
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky md:top-0 h-full md:h-screen w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40 transform transition-transform duration-200 ease-in-out flex flex-col
+        className={`fixed md:sticky md:top-0 h-full md:h-screen w-64 bg-gray-900 border-r border-gray-800 z-40 transform transition-transform duration-200 ease-in-out flex flex-col
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="p-6 border-b border-gray-100 dark:border-gray-700 hidden md:flex items-center justify-between">
+        <div className="p-6 border-b border-gray-800 hidden md:flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight truncate max-w-[150px]">Menu</span>
+            <span className="font-bold text-xl text-white tracking-tight truncate max-w-[150px]">Menu</span>
           </div>
           <button 
             onClick={toggleTheme} 
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-gray-800"
             title={isDarkMode ? "Mudar para modo claro" : "Mudar para modo escuro"}
           >
              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -103,15 +103,15 @@ export const Layout: React.FC = () => {
         </div>
 
         {/* User Profile in Sidebar (Mobile Only / Duplicate) - Keeping for consistency with original design, but desktop header now has profile */}
-        <div className="p-4 md:hidden flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 cursor-pointer" onClick={() => navigate('/profile')}>
+        <div className="p-4 md:hidden flex items-center gap-3 border-b border-gray-800 bg-gray-800/50 cursor-pointer" onClick={() => navigate('/profile')}>
           <img 
             src={profile.photoUrl} 
             alt={profile.name} 
-            className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+            className="w-10 h-10 rounded-full object-cover border border-gray-700"
           />
           <div className="overflow-hidden">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile.name}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{profile.creci}</p>
+            <p className="text-sm font-semibold text-white truncate">{profile.name}</p>
+            <p className="text-xs text-gray-400 truncate">{profile.creci}</p>
           </div>
         </div>
 
@@ -120,15 +120,15 @@ export const Layout: React.FC = () => {
           <NavItem to="/analytics" icon={BarChart3} label="Análise" />
           <NavItem to="/leads" icon={Users} label="Leads" />
           <NavItem to="/form-generator" icon={FileInput} label="Solicitar Docs" />
-          <div className="border-t border-gray-100 dark:border-gray-700 my-2 pt-2"></div>
+          <div className="border-t border-gray-800 my-2 pt-2"></div>
           <NavItem to="/properties/new" icon={PlusCircle} label="Novo Imóvel" />
           <NavItem to="/profile" icon={UserCircle} label="Meu Perfil" />
         </nav>
 
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-800">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors font-medium"
+            className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-400 hover:bg-red-900/20 rounded-lg transition-colors font-medium"
           >
             <LogOut size={20} />
             <span>Sair</span>
@@ -139,16 +139,16 @@ export const Layout: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-x-hidden bg-gray-50 dark:bg-gray-900">
          {/* Desktop Header with User Info on Right */}
-         <div className="hidden md:flex justify-end items-center px-8 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+         <div className="hidden md:flex justify-end items-center px-8 py-4 bg-gray-900 border-b border-gray-800">
             <div 
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded-lg transition-colors"
+              className="flex items-center gap-3 cursor-pointer hover:bg-gray-800 p-2 rounded-lg transition-colors"
               onClick={() => navigate('/profile')}
             >
                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{profile.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{profile.creci}</p>
+                  <p className="text-sm font-semibold text-white">{profile.name}</p>
+                  <p className="text-xs text-gray-400">{profile.creci}</p>
                </div>
-               <img src={profile.photoUrl} className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600" alt="Perfil" />
+               <img src={profile.photoUrl} className="w-10 h-10 rounded-full object-cover border border-gray-700" alt="Perfil" />
             </div>
          </div>
 
