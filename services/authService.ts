@@ -12,7 +12,9 @@ async function fallbackInsertProfile(id: string, name: string, email: string) {
 
 export const authService = {
   async register(name: string, email: string, password?: string) {
+    console.log('[AuthService] Attempting registration for:', email);
     if (!password) {
+      console.error('[AuthService] Registration failed: Password is required');
       throw new Error('Senha é obrigatória');
     }
     const { data, error } = await supabase.auth.signUp({
@@ -20,23 +22,25 @@ export const authService = {
       password,
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('[AuthService] Registration failed:', error.message);
+      throw error;
+    }
     
     if (data.user) {
+      console.log('[AuthService] Registration successful, user ID:', data.user.id);
       // Tentar inserir em 'profiles' conforme documentação do prompt
       const { error: profileError } = await fallbackInsertProfile(data.user.id, name, email);
-      if (profileError) console.error('Erro ao criar perfil:', profileError);
+      if (profileError) console.error('[AuthService] Erro ao criar perfil:', profileError);
     }
     
     return data;
   },
 
   async login(email: string, password?: string) {
-    // Para simplificar a migração e garantir compatibilidade imediata, vamos assumir
-    // que se a senha não for passada (caso do código antigo), não é um fluxo auth completo,
-    // mas a fase 2 diz 'Implementar: Login por email e senha, Logout, Sessão persistente, Recuperação da sessão atual'.
-    // Logo, mudaremos o componente Login.tsx na fase 2 para passar a senha!
+    console.log('[AuthService] Attempting login for:', email);
     if (!password) {
+      console.error('[AuthService] Login failed: Password is required');
       throw new Error('Senha é obrigatória');
     }
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -44,29 +48,50 @@ export const authService = {
       password,
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('[AuthService] Login failed:', error.message);
+      throw error;
+    }
+    
+    console.log('[AuthService] Login successful, user ID:', data.user?.id);
     return data;
   },
 
   async logout() {
+    console.log('[AuthService] Attempting logout...');
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) {
+      console.error('[AuthService] Logout failed:', error.message);
+      throw error;
+    }
+    console.log('[AuthService] Logout successful');
   },
 
   async getCurrentSession() {
+    console.log('[AuthService] Fetching current session...');
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
+    if (error) {
+      console.error('[AuthService] Failed to get current session:', error.message);
+      throw error;
+    }
+    console.log('[AuthService] Current session retrieved:', !!data.session);
     return data.session;
   },
 
   async getCurrentUser() {
+    console.log('[AuthService] Fetching current user...');
     const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
+    if (error) {
+       console.error('[AuthService] Failed to get current user:', error.message);
+       throw error;
+    }
     return data.user;
   },
   
   onAuthStateChange(callback: (session: any) => void) {
-    return supabase.auth.onAuthStateChange((_event, session) => {
+    console.log('[AuthService] Setting up auth state change listener...');
+    return supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[AuthService] Auth state changed:', event);
       callback(session);
     });
   }

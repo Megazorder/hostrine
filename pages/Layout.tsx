@@ -89,6 +89,10 @@ export const Layout: React.FC = () => {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 border-none font-sans">Carregando...</div>;
   }
 
+  if (!profile) {
+    return null; // Prevent crash during redirect if profile failed to load
+  }
+
   const NavItem = ({ to, icon: Icon, label, end = false }: { to: string, icon: any, label: string, end?: boolean }) => (
     <NavLink
       to={to}
