@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UserCircle, LogOut, Menu, X, PlusCircle, Moon, Sun, BarChart3, Users, FileInput } from 'lucide-react';
-import { storageService } from '../services/storage';
+import { LayoutDashboard, UserCircle, LogOut, Menu, X, PlusCircle, Moon, Sun, BarChart3, Users, FileInput, MapPin, Briefcase, Trello } from 'lucide-react';
+import { authService } from '../services/authService';
+import { profileService } from '../services/profileService';
+import { AdminProfile } from '../types';
 
 export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark' || 
@@ -14,12 +18,48 @@ export const Layout: React.FC = () => {
     return false;
   });
 
-  const profile = storageService.getProfile();
-
   useEffect(() => {
-    if (!storageService.isAuthenticated()) {
-      navigate('/login');
-    }
+    let subscription: any;
+    const checkAuthAndFetchProfile = async () => {
+      try {
+        const session = await authService.getCurrentSession();
+        if (!session) {
+          navigate('/login');
+          return;
+        }
+        
+        const fetchedProfile = await profileService.getProfile();
+        if (fetchedProfile) {
+          setProfile(fetchedProfile);
+        } else {
+          // Default fallback profile visually if not configured in DB yet
+          setProfile({
+            name: 'Corretor',
+            creci: '',
+            photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+            whatsapp: '',
+            headerMessage: '',
+          });
+        }
+      } catch (err) {
+         console.error(err);
+         navigate('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthAndFetchProfile();
+
+    const { data } = authService.onAuthStateChange((session) => {
+      if (!session) {
+        navigate('/login');
+      }
+    });
+
+    return () => {
+      data?.subscription?.unsubscribe();
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -36,10 +76,18 @@ export const Layout: React.FC = () => {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
   const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
-  const handleLogout = () => {
-    storageService.logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      navigate('/login');
+    } catch (e) {
+      console.error(e);
+    }
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 border-none font-sans">Carregando...</div>;
+  }
 
   const NavItem = ({ to, icon: Icon, label, end = false }: { to: string, icon: any, label: string, end?: boolean }) => (
     <NavLink
@@ -78,7 +126,7 @@ export const Layout: React.FC = () => {
            </button>
            <div onClick={() => navigate('/profile')} className="flex items-center gap-2 cursor-pointer ml-1">
              <span className="text-sm font-semibold text-white max-w-[100px] truncate">{profile.name}</span>
-             <img src={profile.photoUrl} className="w-8 h-8 rounded-full object-cover border border-gray-700" alt="Perfil" />
+             <img src={profile.photoUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'} className="w-8 h-8 rounded-full object-cover border border-gray-700" alt="Perfil" />
            </div>
         </div>
       </div>
@@ -105,7 +153,7 @@ export const Layout: React.FC = () => {
         {/* User Profile in Sidebar (Mobile Only / Duplicate) - Keeping for consistency with original design, but desktop header now has profile */}
         <div className="p-4 md:hidden flex items-center gap-3 border-b border-gray-800 bg-gray-800/50 cursor-pointer" onClick={() => navigate('/profile')}>
           <img 
-            src={profile.photoUrl} 
+            src={profile.photoUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'} 
             alt={profile.name} 
             className="w-10 h-10 rounded-full object-cover border border-gray-700"
           />
@@ -117,8 +165,10 @@ export const Layout: React.FC = () => {
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <NavItem to="/" icon={LayoutDashboard} label="Imóveis" end />
+          <NavItem to="/owners" icon={UserCircle} label="Proprietários" />
+          <NavItem to="/crm" icon={Briefcase} label="CRM" />
           <NavItem to="/analytics" icon={BarChart3} label="Análise" />
-          <NavItem to="/leads" icon={Users} label="Leads" />
+          <NavItem to="/leads" icon={Users} label="Leads Antigos" />
           <NavItem to="/form-generator" icon={FileInput} label="Solicitar Docs" />
           <div className="border-t border-gray-800 my-2 pt-2"></div>
           <NavItem to="/properties/new" icon={PlusCircle} label="Novo Imóvel" />
@@ -148,7 +198,7 @@ export const Layout: React.FC = () => {
                   <p className="text-sm font-semibold text-white">{profile.name}</p>
                   <p className="text-xs text-gray-400">{profile.creci}</p>
                </div>
-               <img src={profile.photoUrl} className="w-10 h-10 rounded-full object-cover border border-gray-700" alt="Perfil" />
+               <img src={profile.photoUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'} className="w-10 h-10 rounded-full object-cover border border-gray-700" alt="Perfil" />
             </div>
          </div>
 

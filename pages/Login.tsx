@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Home } from 'lucide-react';
-import { storageService } from '../services/storage';
+import { authService } from '../services/authService';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Redirect if already logged in
+    authService.getCurrentSession().then(session => {
+      if (session) {
+        navigate('/');
+      }
+    });
+  }, [navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -23,9 +33,24 @@ export const Login: React.FC = () => {
       return;
     }
 
-    // Simulate login
-    storageService.login(formData.email);
-    navigate('/');
+    try {
+      setLoading(true);
+      if (isRegister) {
+        await authService.register(formData.name, formData.email, formData.password);
+        setIsRegister(false);
+        setError('');
+        alert('Cadastro realizado com sucesso! Faça login para continuar.');
+        setLoading(false);
+        return;
+      } else {
+        await authService.login(formData.email, formData.password);
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao realizar login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -100,9 +125,10 @@ export const Login: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              {isRegister ? 'Criar Conta' : 'Entrar'} <ArrowRight size={18} />
+              {loading ? 'Aguarde...' : (isRegister ? 'Criar Conta' : 'Entrar')} <ArrowRight size={18} />
             </button>
           </form>
 

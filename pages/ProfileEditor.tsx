@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Save, User, Smartphone, BadgeCheck, MessageSquare, Loader2, Upload } from 'lucide-react';
-import { storageService } from '../services/storage';
+import { profileService } from '../services/profileService';
 import { AdminProfile } from '../types';
 
 export const ProfileEditor: React.FC = () => {
@@ -8,9 +8,26 @@ export const ProfileEditor: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isNew, setIsNew] = useState(false);
 
   useEffect(() => {
-    setProfile(storageService.getProfile());
+    const fetchProfile = async () => {
+      const data = await profileService.getProfile();
+      if (data) {
+        setProfile(data);
+        setIsNew(false);
+      } else {
+        setProfile({
+          name: '',
+          creci: '',
+          photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
+          whatsapp: '',
+          headerMessage: ''
+        });
+        setIsNew(true);
+      }
+    };
+    fetchProfile();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -36,16 +53,25 @@ export const ProfileEditor: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (profile) {
       setLoading(true);
-      setTimeout(() => {
-        storageService.saveProfile(profile);
-        setLoading(false);
+      try {
+        if (isNew) {
+           await profileService.createProfile(profile);
+           setIsNew(false);
+        } else {
+           await profileService.updateProfile(profile);
+        }
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
-      }, 500);
+      } catch (e: any) {
+        console.error('Error saving profile:', e);
+        alert('Erro ao salvar perfil: ' + e.message);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

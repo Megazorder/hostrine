@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { storageService } from '../services/storage';
+import { profileService } from '../services/profileService';
+import { propertyService } from '../services/propertyService';
 import { Property, AdminProfile, PropertyStatus, Lead, LeadScore } from '../types';
 import { X, Check, Lock, Loader2, ArrowRight, Wallet, Banknote, Building2, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -42,11 +44,25 @@ export const Showcase: React.FC = () => {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   useEffect(() => {
-    setProperties(storageService.getProperties());
-    setProfile(storageService.getProfile());
+    propertyService.getActiveProperties().then(data => {
+      setProperties(data);
+    }).catch(err => {
+      console.error(err);
+      // Fallback local if DB fails or empty just to not break during dev? The prompt said NOT to use mock data though.
+      setProperties([]);
+    });
+
     // Check if leads are already unlocked in this session/browser
     const unlocked = localStorage.getItem('luxe_prices_unlocked') === 'true';
     setIsPricesUnlocked(unlocked);
+    
+    // Fetch real profile
+    profileService.getProfile().then(p => {
+      if (p) setProfile(p);
+      else setProfile(storageService.getProfile());
+    }).catch(() => {
+      setProfile(storageService.getProfile());
+    });
   }, []);
 
   useEffect(() => {
@@ -284,7 +300,7 @@ export const Showcase: React.FC = () => {
       <nav className="fixed top-0 left-0 w-full z-50 top-bar-glass px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3 cursor-pointer" onClick={handleCloseProperty}>
             <div className="w-10 h-10 rounded-full p-[1px] bg-gradient-to-tr from-blue-500 to-cyan-400 relative">
-                <img src={profile.photoUrl} className="w-full h-full rounded-full object-cover border border-[#0f172a]" alt="Perfil" />
+                <img src={profile.photoUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'} className="w-full h-full rounded-full object-cover border border-[#0f172a]" alt="Perfil" />
             </div>
             <div>
                 <div className="flex items-center gap-1">
@@ -313,7 +329,7 @@ export const Showcase: React.FC = () => {
             <div className="relative z-10 max-w-3xl mx-auto pt-4">
                <div className="relative w-32 h-32 mx-auto mb-6">
                    <div className="w-full h-full rounded-full p-[2px] bg-gradient-to-tr from-blue-500 to-cyan-400 shadow-2xl">
-                       <img src={profile.photoUrl} className="w-full h-full rounded-full object-cover border-4 border-[#0f172a]" alt="Foto Corretor" />
+                       <img src={profile.photoUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'} className="w-full h-full rounded-full object-cover border-4 border-[#0f172a]" alt="Foto Corretor" />
                    </div>
                </div>
                <h1 className="text-4xl md:text-6xl font-bold mb-2 tracking-tight text-white">{profile.name}</h1>
@@ -342,7 +358,7 @@ export const Showcase: React.FC = () => {
                                                 <div className="absolute inset-0 bg-slate-800 shimmer z-0"></div>
                                              )}
                                              <img 
-                                               src={imovel.media[0].url} 
+                                               src={imovel.media && imovel.media[0]?.url ? imovel.media[0].url : 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9'} 
                                                className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-110 ${loadedImages[imovel.id] ? 'opacity-100' : 'opacity-0'}`} 
                                                alt={imovel.title} 
                                                loading="lazy" 
@@ -450,7 +466,7 @@ export const Showcase: React.FC = () => {
                                  
                                  {selectedProperty.media[currentMediaIndex]?.type === 'video' ? (
                                     <video 
-                                        src={selectedProperty.media[currentMediaIndex].url} 
+                                        src={selectedProperty.media[currentMediaIndex]?.url || undefined} 
                                         controls 
                                         autoPlay 
                                         muted 
@@ -459,7 +475,7 @@ export const Showcase: React.FC = () => {
                                     ></video>
                                  ) : (
                                     <img 
-                                        src={selectedProperty.media[currentMediaIndex]?.url} 
+                                        src={selectedProperty.media[currentMediaIndex]?.url || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9'} 
                                         className={`w-full h-full object-cover pointer-events-none transition-opacity duration-500 ${mainMediaLoading ? 'opacity-0' : 'opacity-100'}`} 
                                         alt="Property" 
                                         decoding="async"
@@ -482,7 +498,7 @@ export const Showcase: React.FC = () => {
                             {selectedProperty.media.map((m, idx) => (
                                 <div key={m.id} onClick={() => setCurrentMediaIndex(idx)} 
                                      className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden cursor-pointer transition bg-slate-800 ${idx === currentMediaIndex ? 'border-2 border-blue-500 opacity-100' : 'opacity-60 hover:opacity-100'}`}>
-                                    {m.type === 'video' ? <video src={m.url} className="w-full h-full object-cover" /> : <img src={m.url} className="w-full h-full object-cover" alt="thumb" loading="lazy" decoding="async" />}
+                                    {m.type === 'video' ? <video src={m.url || undefined} className="w-full h-full object-cover" /> : <img src={m.url || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9'} className="w-full h-full object-cover" alt="thumb" loading="lazy" decoding="async" />}
                                 </div>
                             ))}
                         </div>

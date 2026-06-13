@@ -92,7 +92,7 @@ export const storageService = {
 
   getProperties: (): Property[] => {
     const stored = localStorage.getItem(KEYS.PROPERTIES);
-    return stored ? JSON.parse(stored) : MOCK_PROPERTIES;
+    return stored ? JSON.parse(stored) : [];
   },
 
   getPropertyById: (id: string): Property | undefined => {
@@ -122,7 +122,7 @@ export const storageService = {
   // Leads
   getLeads: (): Lead[] => {
     const stored = localStorage.getItem(KEYS.LEADS);
-    return stored ? JSON.parse(stored) : MOCK_LEADS;
+    return stored ? JSON.parse(stored) : [];
   },
 
   saveLead: (lead: Lead): void => {

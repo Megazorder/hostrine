@@ -1,19 +1,31 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Users, MessageCircle, ArrowUpRight, Calendar, MousePointerClick, Eye, UserPlus, CheckCircle2, Archive, ListFilter } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, MessageCircle, ArrowUpRight, Calendar, MousePointerClick, Eye, UserPlus, CheckCircle2, Archive, ListFilter, Contact } from 'lucide-react';
+import { propertyService } from '../services/propertyService';
+import { leadService } from '../services/leadService';
+import { ownerService } from '../services/ownerService';
+import { crmService, CrmLead } from '../services/crmService';
 import { storageService } from '../services/storage';
-import { Lead, LeadColumn } from '../types';
 
 export const Analytics: React.FC = () => {
   const [period, setPeriod] = useState('7d');
   const [hoveredData, setHoveredData] = useState<any>(null);
-  const [properties, setProperties] = useState(storageService.getProperties());
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [columns, setColumns] = useState<LeadColumn[]>([]);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [ownersCount, setOwnersCount] = useState(0);
+  const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
 
   useEffect(() => {
-    setProperties(storageService.getProperties());
-    setLeads(storageService.getLeads());
-    setColumns(storageService.getLeadColumns());
+    Promise.all([
+      propertyService.getProperties(),
+      leadService.getLeads(),
+      ownerService.getOwners(),
+      crmService.getLeads()
+    ]).then(([propsData, leadsData, ownersData, crmData]) => {
+      setProperties(propsData);
+      setLeads(leadsData);
+      setOwnersCount(ownersData.length);
+      setCrmLeads(crmData);
+    }).catch(console.error);
   }, []);
 
   // Filter Data based on Period
@@ -28,24 +40,35 @@ export const Analytics: React.FC = () => {
     return leads.filter(l => l.createdAt >= cutoff);
   }, [leads, period]);
 
-  // Lead Stats Logic (Based on Dynamic Columns)
+  // Lead Stats Logic
   const leadStats = useMemo(() => {
-    // Attempt to map typical phases if they exist (by index or loose ID match)
-    // Assuming first column is "New", last or middle is "Contacted" for simple stats
-    // But better to just show total and breakdown
     return {
       total: filteredLeads.length,
       conversionRate: properties.length > 0 ? (filteredLeads.length / (properties.length * 50)) * 100 : 0
     };
   }, [filteredLeads, properties]);
 
+  const crmStats = useMemo(() => {
+    return {
+      novos: crmLeads.filter(l => l.status === 'novo' || !l.status).length,
+      emContato: crmLeads.filter(l => ['contato_iniciado', 'resposta_recebida'].includes(l.status)).length,
+      visitas: crmLeads.filter(l => l.status === 'visita_agendada').length,
+      propostas: crmLeads.filter(l => l.status === 'proposta').length,
+      fechados: crmLeads.filter(l => l.status === 'fechado').length,
+      perdidos: crmLeads.filter(l => l.status === 'perdido').length,
+    };
+  }, [crmLeads]);
+
   const leadsByColumn = useMemo(() => {
-      return columns.map(col => ({
-          title: col.title,
-          color: col.color,
-          count: filteredLeads.filter(l => l.status === col.id).length
-      }));
-  }, [columns, filteredLeads]);
+      return [
+        { title: 'Novos', color: '#3b82f6', count: crmStats.novos },
+        { title: 'Em Contato', color: '#f59e0b', count: crmStats.emContato },
+        { title: 'Visitas', color: '#8b5cf6', count: crmStats.visitas },
+        { title: 'Propostas', color: '#10b981', count: crmStats.propostas },
+        { title: 'Fechados', color: '#22c55e', count: crmStats.fechados },
+        { title: 'Perdidos', color: '#ef4444', count: crmStats.perdidos },
+      ];
+  }, [crmStats]);
 
   // General Stats Logic (Mocked Views/Clicks mixed with Real Leads)
   const generalStats = useMemo(() => {
@@ -224,19 +247,18 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* General Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Visitas na Vitrine" value={generalStats.totalViews.toLocaleString()} subtext="Visualizações únicas estimadas" icon={Eye} color="bg-blue-500" percent="+12%" />
-        <StatCard title="Cliques no WhatsApp" value={generalStats.totalClicks.toLocaleString()} subtext="Intenção de contato direta" icon={MessageCircle} color="bg-green-500" percent="+5%" />
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
+        <StatCard title="Total de Imóveis" value={properties.length} subtext="Cadastrados no sistema" icon={BarChart3} color="bg-orange-500" />
+        <StatCard title="Total de Proprietários" value={ownersCount} subtext="Base de contatos" icon={Contact} color="bg-blue-500" />
         <StatCard title="Total de Leads" value={leadStats.total} subtext="Contatos capturados" icon={Users} color="bg-purple-500" percent={leadStats.total > 0 ? '+100%' : '0%'} />
-        <StatCard title="Imóveis Ativos" value={generalStats.totalProperties} subtext="Disponíveis na vitrine" icon={BarChart3} color="bg-orange-500" />
       </div>
 
       {/* Leads Summary Section */}
       <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-8 flex items-center gap-2">
          <ListFilter size={20} className="text-gray-500" />
-         Breakdown por Fase do Funil
+         Funil CRM de Captação
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
          {leadsByColumn.map((col, idx) => (
              <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
                 <div>

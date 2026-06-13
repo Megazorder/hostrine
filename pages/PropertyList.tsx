@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Edit2, Trash2, MapPin, BedDouble, Bath, Square, Plus, ArrowUpDown, ArrowUp, ArrowDown, Eye, Globe, Settings, X, Check, Save, Ban, AlertTriangle } from 'lucide-react';
 import { storageService } from '../services/storage';
+import { profileService } from '../services/profileService';
+import { propertyService } from '../services/propertyService';
 import { Property, PropertyStatus, AdminProfile } from '../types';
 
 type SortKey = 'createdAt' | 'price' | 'status' | 'title';
@@ -24,13 +26,30 @@ export const PropertyList: React.FC = () => {
   });
 
   useEffect(() => {
-    setProperties(storageService.getProperties());
-    const userProfile = storageService.getProfile();
-    setProfile(userProfile);
-    setDomainConfig({
-      subdomain: userProfile.subdomain || '',
-      customDomain: userProfile.customDomain || ''
+    propertyService.getProperties().then(data => {
+      setProperties(data);
+    }).catch(err => {
+      console.error(err);
+      // Fallback only if needed, but we shouldn't use mock. 
+      // setProperties(storageService.getProperties());
     });
+
+    const userProfileLocal = storageService.getProfile();
+    setProfile(userProfileLocal);
+    setDomainConfig({
+      subdomain: userProfileLocal.subdomain || '',
+      customDomain: userProfileLocal.customDomain || ''
+    });
+
+    profileService.getProfile().then(p => {
+      if (p) {
+        setProfile(p);
+        setDomainConfig({
+          subdomain: p.subdomain || '',
+          customDomain: p.customDomain || ''
+        });
+      }
+    }).catch(console.error);
   }, []);
 
   const handleOpenManageModal = (id: string) => {
@@ -41,33 +60,36 @@ export const PropertyList: React.FC = () => {
     setManageModal({ isOpen: false, propertyId: null });
   };
 
-  const handleUnpublish = () => {
+  const handleUnpublish = async () => {
     if (manageModal.propertyId) {
       const property = properties.find(p => p.id === manageModal.propertyId);
       if (property) {
         const updated = { ...property, status: PropertyStatus.DRAFT };
-        storageService.saveProperty(updated);
-        setProperties(storageService.getProperties());
+        await propertyService.saveProperty(updated);
+        const data = await propertyService.getProperties();
+        setProperties(data);
       }
       handleCloseManageModal();
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (manageModal.propertyId) {
-      storageService.deleteProperty(manageModal.propertyId);
-      setProperties(storageService.getProperties());
+      await propertyService.deleteProperty(manageModal.propertyId);
+      const data = await propertyService.getProperties();
+      setProperties(data);
       handleCloseManageModal();
     }
   };
 
-  const handlePublish = (e: React.MouseEvent, id: string) => {
+  const handlePublish = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     const property = properties.find(p => p.id === id);
     if (property) {
       const updated = { ...property, status: PropertyStatus.AVAILABLE };
-      storageService.saveProperty(updated);
-      setProperties(storageService.getProperties());
+      await propertyService.saveProperty(updated);
+      const data = await propertyService.getProperties();
+      setProperties(data);
     }
   };
 

@@ -172,7 +172,7 @@ export const ClientUpload: React.FC = () => {
       {/* Header */}
       <header className="bg-white px-6 py-6 shadow-sm sticky top-0 z-10">
         <div className="flex items-center gap-4 mb-4">
-           <img src={profile.photoUrl} className="w-12 h-12 rounded-full object-cover border-2 border-brand-100" alt="Corretor" />
+           <img src={profile?.photoUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'} className="w-12 h-12 rounded-full object-cover border-2 border-brand-100" alt="Corretor" />
            <div>
               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Envio Seguro Para</p>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">{profile.name}</h1>

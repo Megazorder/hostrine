@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, X, Image as ImageIcon, Loader2, UploadCloud, CheckCircle2, Trash2, Tag, Eye, EyeOff, FileText, Lock, MessageCircleQuestion, Plus } from 'lucide-react';
-import { storageService } from '../services/storage';
+import { propertyService } from '../services/propertyService';
 import { Property, PropertyStatus, MediaItem, PropertyFAQ } from '../types';
 
 const EMPTY_PROPERTY: Omit<Property, 'id' | 'createdAt'> = {
@@ -47,12 +47,13 @@ export const PropertyEditor: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      const existing = storageService.getPropertyById(id);
-      if (existing) {
-        setFormData({ ...EMPTY_PROPERTY, ...existing });
-      } else {
-        navigate('/');
-      }
+      propertyService.getProperty(id).then(existing => {
+        if (existing) {
+          setFormData({ ...EMPTY_PROPERTY, ...existing });
+        } else {
+          navigate('/');
+        }
+      });
     }
   }, [id, navigate]);
 
@@ -185,23 +186,30 @@ export const PropertyEditor: React.FC = () => {
     }, 500);
   };
 
-  const handleSubmit = (e: React.FormEvent, publish: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, publish: boolean = false) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate API delay
-    setTimeout(() => {
-      const payload: Property = {
-        ...formData,
-        id: id || Math.random().toString(36).substr(2, 9),
-        createdAt: formData.createdAt || Date.now(),
-        status: publish ? PropertyStatus.AVAILABLE : formData.status || PropertyStatus.DRAFT
-      };
-      
-      storageService.saveProperty(payload);
-      setLoading(false);
-      navigate('/');
-    }, 800);
+    const payload: Property = {
+      ...formData,
+      status: publish ? PropertyStatus.AVAILABLE : formData.status || PropertyStatus.DRAFT
+    };
+    if (id) {
+        payload.id = id;
+    } else {
+        // Remove random string ID so propertyService triggers Supabase Insert
+        payload.id = ''; 
+    }
+    
+    const saved = await propertyService.saveProperty(payload);
+    setLoading(false);
+    
+    if (!saved) {
+       alert("Erro ao salvar imóvel. Verifique o console e a estrutura da tabela 'imoveis' no Supabase.");
+       return;
+    }
+    
+    navigate('/');
   };
 
   const inputClass = "w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors";
@@ -411,7 +419,7 @@ export const PropertyEditor: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
              {formData.media.map((item: MediaItem) => (
                <div key={item.id} className="relative group rounded-lg overflow-hidden aspect-square bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
-                 <img src={item.url} alt="Media" className="w-full h-full object-cover" />
+                 <img src={item.url || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9'} alt="Media" className="w-full h-full object-cover" />
                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button type="button" onClick={() => removeMedia(item.id)} className="bg-red-500 p-2 rounded-full text-white hover:bg-red-600 transition-colors">
                       <Trash2 size={16} />

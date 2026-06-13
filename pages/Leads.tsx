@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Download, Trash2, Search, Plus, MoreHorizontal, Phone, Mail, Calendar, MapPin, X, Banknote, Wallet, Home, Clock, Info, UserPlus, FileText, UploadCloud, User, Briefcase, ScrollText, CheckCircle2, Save, FileCheck, Paperclip, Eye, CheckSquare, Square, ChevronDown, ChevronRight, AlertCircle, PieChart, Link as LinkIcon, Share2, Camera, ExternalLink, Archive, FolderArchive, Loader2 } from 'lucide-react';
 import { storageService } from '../services/storage';
+import { leadService } from '../services/leadService';
+import { propertyService } from '../services/propertyService';
 import { Lead, LeadColumn, LeadScore, Property, LeadDocument, ChecklistItemState, IncomeType } from '../types';
 import JSZip from 'jszip';
 
@@ -41,9 +43,15 @@ export const Leads: React.FC = () => {
   const [isExportingZip, setIsExportingZip] = useState(false);
 
   useEffect(() => {
-    setLeads(storageService.getLeads());
+    Promise.all([
+       leadService.getLeads(),
+       propertyService.getProperties()
+    ]).then(([leadsData, propsData]) => {
+      setLeads(leadsData);
+      setProperties(propsData);
+    }).catch(console.error);
+
     setColumns(storageService.getLeadColumns());
-    setProperties(storageService.getProperties());
   }, []);
 
   // --- Image Compression Helper ---
@@ -1265,9 +1273,9 @@ export const Leads: React.FC = () => {
              </div>
              <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center border border-white/10 relative">
                 {previewDoc.type === 'pdf' ? (
-                   <iframe src={previewDoc.url} className="w-full h-full" title="Preview"></iframe>
+                   <iframe src={previewDoc.url || undefined} className="w-full h-full" title="Preview"></iframe>
                 ) : (
-                   <img src={previewDoc.url} alt="Preview" className="max-w-full max-h-full object-contain" />
+                   <img src={previewDoc.url || undefined} alt="Preview" className="max-w-full max-h-full object-contain" />
                 )}
              </div>
           </div>

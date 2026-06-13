@@ -106,10 +106,17 @@ export interface Lead {
 
 export interface AdminProfile {
   name: string;
-  creci: string;
+  nome?: string;
+  creci?: string;
   photoUrl: string;
+  foto_url?: string;
   whatsapp: string;
   headerMessage: string;
-  subdomain?: string; // New: Custom subdomain (e.g., myname.luxe.app)
-  customDomain?: string; // New: Full custom domain (e.g., www.myrealestate.com)
+  bio?: string;
+  subdomain?: string;
+  slug?: string;
+  customDomain?: string;
+  telefone?: string;
+  cidade?: string;
+  instagram?: string;
 }
