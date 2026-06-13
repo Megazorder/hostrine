@@ -45,10 +45,16 @@ export const Showcase: React.FC = () => {
 
   useEffect(() => {
     propertyService.getActiveProperties().then(data => {
-      setProperties(data);
+      console.log('--- LOG DA VITRINE ---');
+      console.log('quantidade de imóveis retornados:', data.length);
+      data.forEach(p => console.log(`Imóvel: ${p.title} | Status: ${p.status}`));
+
+      const filtered = data.filter(p => p.status === 'Disponível');
+      console.log('quantidade após o filtro:', filtered.length);
+
+      setProperties(filtered);
     }).catch(err => {
       console.error(err);
-      // Fallback local if DB fails or empty just to not break during dev? The prompt said NOT to use mock data though.
       setProperties([]);
     });
 
@@ -92,7 +98,7 @@ export const Showcase: React.FC = () => {
   }, [selectedProperty]);
 
   const activeProperties = useMemo(() => {
-    return properties.filter(p => p.status !== PropertyStatus.SOLD && p.status !== PropertyStatus.DRAFT);
+    return properties.filter(p => p.status === 'Disponível');
   }, [properties]);
 
   const groupedProperties = useMemo(() => {

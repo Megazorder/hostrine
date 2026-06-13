@@ -66,7 +66,6 @@ export const propertyService = {
     const { data, error } = await supabase
       .from('imoveis')
       .select('*')
-      .eq('status', 'available')
       .order('created_at', { ascending: false });
 
     if (error) {
