@@ -3,7 +3,16 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './ErrorBoundary';
 
+console.log("APP_START");
 console.log('[App] Starting application initialization...');
+
+window.addEventListener("error", (event) => {
+  console.error("UNHANDLED_ERROR", event.error);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("UNHANDLED_REJECTION", event.reason);
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

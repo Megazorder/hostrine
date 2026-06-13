@@ -16,6 +16,7 @@ import { ClientUpload } from './pages/ClientUpload';
 import { FormGenerator } from './pages/FormGenerator';
 
 const App: React.FC = () => {
+  console.log("ROUTER_MOUNT");
   return (
     <HashRouter>
       <Routes>

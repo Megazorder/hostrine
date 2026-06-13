@@ -68,6 +68,7 @@ export const authService = {
   },
 
   async getCurrentSession() {
+    console.log("AUTH_CHECK");
     console.log('[AuthService] Fetching current session...');
     const { data, error } = await supabase.auth.getSession();
     if (error) {

@@ -6,6 +6,7 @@ import { profileService } from '../services/profileService';
 import { AdminProfile } from '../types';
 
 export const Layout: React.FC = () => {
+  console.log("LAYOUT_RENDER");
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
