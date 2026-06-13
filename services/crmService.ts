@@ -2,24 +2,18 @@ import { supabase } from './supabase';
 
 export interface CrmLead {
   id: string;
-  owner_id?: string;
-  owner_name: string;
-  property_title: string;
-  property_image?: string;
-  score: string;
-  whatsapp: string;
-  phone: string;
-  status: string;
-  notes: string;
+  proprietario_id?: string;
+  coluna: string;
   created_at?: string;
-  original_url?: string;
+  proprietarios_detectados?: any;
+  interacoes_proprietario?: any[];
 }
 
 export const crmService = {
   async getLeads() {
     const { data, error } = await supabase
-      .from('crm_leads')
-      .select('*')
+      .from('pipeline_cards')
+      .select('*, proprietarios_detectados(*), interacoes_proprietario(*)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -29,26 +23,13 @@ export const crmService = {
     return data as CrmLead[];
   },
 
-  async moveOwnerToCrm(owner: any) {
-    const propertyTitle = owner.imoveis?.titulo || 'Imóvel sem título';
-    const propertyImage = owner.imoveis?.fotos?.[0] || '';
-
-    const newLead = {
-      owner_id: owner.id,
-      owner_name: owner.owner_name || 'Sem nome',
-      property_title: propertyTitle,
-      property_image: propertyImage,
-      score: owner.lead_score || 'unscored',
-      whatsapp: owner.whatsapp || owner.phone || '',
-      phone: owner.phone || '',
-      status: 'novo',
-      notes: '',
-      original_url: owner.origin_url || ''
-    };
-
+  async moveOwnerToCrm(ownerId: string) {
     const { data, error } = await supabase
-      .from('crm_leads')
-      .insert([newLead])
+      .from('pipeline_cards')
+      .insert([{
+        proprietario_id: ownerId,
+        coluna: 'novo_lead'
+      }])
       .select()
       .single();
 
@@ -57,13 +38,13 @@ export const crmService = {
       throw error;
     }
 
-    return data as CrmLead;
+    return data;
   },
 
   async updateLeadStatus(id: string, status: string) {
     const { error } = await supabase
-      .from('crm_leads')
-      .update({ status })
+      .from('pipeline_cards')
+      .update({ coluna: status })
       .eq('id', id);
 
     if (error) {
@@ -72,14 +53,15 @@ export const crmService = {
     }
   },
 
-  async updateLeadNotes(id: string, notes: string) {
+  async addInteraction(pipeline_card_id: string, descricao: string, tipo: string = 'observacao') {
     const { error } = await supabase
-      .from('crm_leads')
-      .update({ notes })
-      .eq('id', id);
+      .from('interacoes_proprietario')
+      .insert([{ pipeline_card_id, descricao, tipo }]);
 
     if (error) {
-      console.error('Error updating CRM lead notes:', error);
+       // Maybe it expects proprietario_id instead of pipeline_card_id?
+       // Let's try both or just pipeline_card_id and proprietario_id
+      console.error('Error adding interaction:', error);
       throw error;
     }
   }

@@ -72,16 +72,22 @@ export const Owners: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {owners.map(owner => {
-          const propertyTitle = owner.imoveis?.titulo || 'Imóvel sem título';
-          const coverImage = owner.imoveis?.fotos?.[0] || 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9';
-          const city = owner.imoveis?.cidade || 'Sem cidade';
+          const propertyTitle = `${owner.bairro ? owner.bairro + ' - ' : ''}${owner.cidade || 'Imóvel'}`;
+          const coverImage = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9';
+          const city = owner.cidade || 'Sem cidade';
 
           return (
             <div key={owner.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="h-48 overflow-hidden relative">
                 <img src={coverImage} alt={propertyTitle} className="w-full h-full object-cover" />
-                <div className="absolute top-3 right-3">
-                  <ScoreBadge score={owner.lead_score} />
+                <div className="absolute top-3 right-3 flex gap-2">
+                  <ScoreBadge score={owner.score} />
+                  <button 
+                    onClick={() => ownerService.toggleFavorite(owner.id, owner.isFavorite).then(() => fetchOwners())}
+                    className={`p-1.5 rounded-full backdrop-blur-md transition-colors ${owner.isFavorite ? 'bg-red-500/90 text-white' : 'bg-white/80 text-gray-600 hover:bg-white'} shadow-sm`}
+                  >
+                    <svg className="w-4 h-4" fill={owner.isFavorite ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                  </button>
                 </div>
                 <div className="absolute bottom-3 left-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur px-2 py-1 select-none rounded text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1">
                   <MapPin size={12} /> {city}
@@ -95,25 +101,25 @@ export const Owners: React.FC = () => {
                   </h3>
                   <div className="flex items-center gap-2 mt-2 text-gray-600 dark:text-gray-300">
                     <User size={16} />
-                    <span className="font-medium truncate">{owner.owner_name || 'Nome Indisponível'}</span>
+                    <span className="font-medium truncate">{owner.nome || 'Nome Indisponível'}</span>
                   </div>
                   <div className="flex items-center justify-between mt-2 text-sm">
-                     <span className="text-gray-500">Origem: <span className="font-medium text-gray-700 dark:text-gray-200">{owner.source_platform || 'Desconhecida'}</span></span>
+                     <span className="text-gray-500">Origem: <span className="font-medium text-gray-700 dark:text-gray-200">{owner.origem || 'Desconhecida'}</span></span>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => handleWhatsApp(owner.whatsapp || owner.phone)}
-                    disabled={!owner.whatsapp && !owner.phone}
+                    onClick={() => handleWhatsApp(owner.whatsapp || owner.telefone)}
+                    disabled={!owner.whatsapp && !owner.telefone}
                     className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                   >
                     <MessageCircle size={16} />
                     WhatsApp
                   </button>
-                  {owner.origin_url && (
+                  {owner.url_origem && (
                     <button 
-                      onClick={() => window.open(owner.origin_url, '_blank')}
+                      onClick={() => window.open(owner.url_origem, '_blank')}
                       className="px-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition-colors flex items-center justify-center"
                       title="Ver Anúncio Original"
                     >
@@ -123,7 +129,7 @@ export const Owners: React.FC = () => {
                 </div>
 
                 <button 
-                  onClick={() => handleMoveToCrm(owner)}
+                  onClick={() => handleMoveToCrm(owner.id)}
                   disabled={movingId === owner.id}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-75 disabled:cursor-wait"
                 >

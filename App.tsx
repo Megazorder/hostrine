@@ -10,6 +10,8 @@ import { Analytics } from './pages/Analytics';
 import { Leads } from './pages/Leads';
 import { Owners } from './pages/Owners';
 import { CRM } from './pages/CRM';
+import { Radar } from './pages/Radar';
+import { Captacao } from './pages/Captacao';
 import { ClientUpload } from './pages/ClientUpload';
 import { FormGenerator } from './pages/FormGenerator';
 
@@ -25,6 +27,8 @@ const App: React.FC = () => {
           <Route path="leads" element={<Leads />} />
           <Route path="owners" element={<Owners />} />
           <Route path="crm" element={<CRM />} />
+          <Route path="radar" element={<Radar />} />
+          <Route path="captacao" element={<Captacao />} />
           <Route path="form-generator" element={<FormGenerator />} />
           <Route path="properties/new" element={<PropertyEditor />} />
           <Route path="properties/:id" element={<PropertyEditor />} />

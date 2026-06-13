@@ -10,12 +10,15 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
+    "@types/leaflet": "^1.9.21",
     "@vitejs/plugin-react": "^5.1.2",
     "jszip": "^3.10.1",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "path": "^0.12.7",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.11.0",
     "url": "^0.11.4",
     "vite": "^7.3.0"

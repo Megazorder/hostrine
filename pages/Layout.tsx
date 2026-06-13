@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UserCircle, LogOut, Menu, X, PlusCircle, Moon, Sun, BarChart3, Users, FileInput, MapPin, Briefcase, Trello } from 'lucide-react';
+import { LayoutDashboard, UserCircle, LogOut, Menu, X, PlusCircle, Moon, Sun, BarChart3, Users, FileInput, MapPin, Briefcase, Trello, Target } from 'lucide-react';
 import { authService } from '../services/authService';
 import { profileService } from '../services/profileService';
 import { AdminProfile } from '../types';
@@ -165,6 +165,8 @@ export const Layout: React.FC = () => {
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <NavItem to="/" icon={LayoutDashboard} label="Imóveis" end />
+          <NavItem to="/radar" icon={MapPin} label="Radar" />
+          <NavItem to="/captacao" icon={Target} label="Captação" />
           <NavItem to="/owners" icon={UserCircle} label="Proprietários" />
           <NavItem to="/crm" icon={Briefcase} label="CRM" />
           <NavItem to="/analytics" icon={BarChart3} label="Análise" />

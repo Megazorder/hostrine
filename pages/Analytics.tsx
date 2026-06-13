@@ -4,7 +4,9 @@ import { propertyService } from '../services/propertyService';
 import { leadService } from '../services/leadService';
 import { ownerService } from '../services/ownerService';
 import { crmService, CrmLead } from '../services/crmService';
+import { radarService } from '../services/radarService';
 import { storageService } from '../services/storage';
+import { MapPin } from 'lucide-react';
 
 export const Analytics: React.FC = () => {
   const [period, setPeriod] = useState('7d');
@@ -13,18 +15,21 @@ export const Analytics: React.FC = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [ownersCount, setOwnersCount] = useState(0);
   const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
+  const [radarStats, setRadarStats] = useState({ foundToday: 0, hotOpportunities: 0, favorites: 0, movedToCrm: 0 });
 
   useEffect(() => {
     Promise.all([
       propertyService.getProperties(),
       leadService.getLeads(),
       ownerService.getOwners(),
-      crmService.getLeads()
-    ]).then(([propsData, leadsData, ownersData, crmData]) => {
+      crmService.getLeads(),
+      radarService.getRadarStats()
+    ]).then(([propsData, leadsData, ownersData, crmData, radarData]) => {
       setProperties(propsData);
       setLeads(leadsData);
       setOwnersCount(ownersData.length);
       setCrmLeads(crmData);
+      setRadarStats(radarData);
     }).catch(console.error);
   }, []);
 
@@ -50,12 +55,13 @@ export const Analytics: React.FC = () => {
 
   const crmStats = useMemo(() => {
     return {
-      novos: crmLeads.filter(l => l.status === 'novo' || !l.status).length,
-      emContato: crmLeads.filter(l => ['contato_iniciado', 'resposta_recebida'].includes(l.status)).length,
-      visitas: crmLeads.filter(l => l.status === 'visita_agendada').length,
-      propostas: crmLeads.filter(l => l.status === 'proposta').length,
-      fechados: crmLeads.filter(l => l.status === 'fechado').length,
-      perdidos: crmLeads.filter(l => l.status === 'perdido').length,
+      novos: crmLeads.filter(l => l.coluna === 'novo_lead' || !l.coluna).length,
+      emContato: crmLeads.filter(l => ['contato_iniciado', 'resposta_recebida'].includes(l.coluna)).length,
+      visitas: crmLeads.filter(l => l.coluna === 'visita_agendada').length,
+      propostas: crmLeads.filter(l => l.coluna === 'proposta').length,
+      fechados: crmLeads.filter(l => l.coluna === 'fechado').length,
+      perdidos: crmLeads.filter(l => l.coluna === 'perdido').length,
+      emAndamento: crmLeads.filter(l => !['fechado', 'perdido'].includes(l.coluna)).length
     };
   }, [crmLeads]);
 
@@ -247,10 +253,11 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* General Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
-        <StatCard title="Total de Imóveis" value={properties.length} subtext="Cadastrados no sistema" icon={BarChart3} color="bg-orange-500" />
-        <StatCard title="Total de Proprietários" value={ownersCount} subtext="Base de contatos" icon={Contact} color="bg-blue-500" />
-        <StatCard title="Total de Leads" value={leadStats.total} subtext="Contatos capturados" icon={Users} color="bg-purple-500" percent={leadStats.total > 0 ? '+100%' : '0%'} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Proprietários Detectados" value={ownersCount} subtext="Em sua base" icon={Contact} color="bg-blue-500" />
+        <StatCard title="Leads em Andamento" value={crmStats.emAndamento} subtext="No CRM" icon={Users} color="bg-orange-500" />
+        <StatCard title="Visitas Agendadas" value={crmStats.visitas} subtext="Imóveis" icon={Calendar} color="bg-purple-500" />
+        <StatCard title="Captações Fechadas" value={crmStats.fechados} subtext="Total convertidas" icon={CheckCircle2} color="bg-emerald-500" />
       </div>
 
       {/* Leads Summary Section */}
@@ -270,6 +277,30 @@ export const Analytics: React.FC = () => {
                 </div>
              </div>
          ))}
+      </div>
+
+      {/* Radar Stats Section */}
+      <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-8 flex items-center gap-2">
+         <MapPin size={20} className="text-blue-500" />
+         Radar ImobHunter
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Encontrados Hoje</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{radarStats.foundToday}</p>
+         </div>
+         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-amber-200 dark:border-amber-700/50 shadow-sm">
+            <p className="text-xs text-amber-600 dark:text-amber-500 font-medium uppercase tracking-wide mb-1 flex items-center gap-1">🔥 Op. Quentes</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{radarStats.hotOpportunities}</p>
+         </div>
+         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <p className="text-xs text-red-500 font-medium uppercase tracking-wide mb-1 flex items-center gap-1">⭐ Favoritos</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{radarStats.favorites}</p>
+         </div>
+         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-blue-200 dark:border-blue-700/50 shadow-sm">
+            <p className="text-xs text-blue-600 dark:text-blue-500 font-medium uppercase tracking-wide mb-1">Movidos ao CRM</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{radarStats.movedToCrm}</p>
+         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { crmService, CrmLead } from '../services/crmService';
-import { MessageCircle, ExternalLink, Phone, AlignLeft, Search } from 'lucide-react';
+import { MessageCircle, ExternalLink, Phone, AlignLeft, Search, History } from 'lucide-react';
 
 const COLUMNS = [
-  { id: 'novo', title: 'Novo' },
+  { id: 'novo_lead', title: 'Novo Lead' },
   { id: 'contato_iniciado', title: 'Contato Iniciado' },
   { id: 'resposta_recebida', title: 'Resposta Recebida' },
   { id: 'visita_agendada', title: 'Visita Agendada' },
@@ -45,13 +45,13 @@ export const CRM: React.FC = () => {
     
     // Optimistic update
     const lead = leads.find(l => l.id === leadId);
-    if (lead && lead.status !== colId) {
-      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: colId } : l));
+    if (lead && lead.coluna !== colId) {
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, coluna: colId } : l));
       try {
         await crmService.updateLeadStatus(leadId, colId);
       } catch (err) {
         // revert on error
-        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: lead.status } : l));
+        fetchLeads();
         alert('Erro ao atualizar status');
       }
     }
@@ -62,46 +62,53 @@ export const CRM: React.FC = () => {
   };
 
   const handleSaveNotes = async (id: string) => {
-    try {
-      await crmService.updateLeadNotes(id, notesText);
-      setLeads(prev => prev.map(l => l.id === id ? { ...l, notes: notesText } : l));
+    if (!notesText.trim()) {
       setEditingNotes(null);
+      return;
+    }
+    try {
+      await crmService.addInteraction(id, notesText, 'observacao');
+      // refresh to get new interacoes
+      await fetchLeads();
+      setEditingNotes(null);
+      setNotesText('');
     } catch (e) {
       console.error(e);
-      alert('Erro ao salvar observações');
+      alert('Erro ao salvar observação');
     }
   };
 
-  const filteredLeads = leads.filter(l => 
-    l.owner_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    l.property_title?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLeads = leads.filter(l => {
+    const owner = l.proprietarios_detectados || {};
+    return owner.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+           owner.cidade?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const ScoreBadge = ({ score }: { score: string }) => {
     const s = score?.toLowerCase() || 'unscored';
     if (s === 'gold' || s === 'alta' || s === 'quente') {
-      return <div className="w-3 h-3 rounded-full bg-amber-500" title="Alta Prioridade"></div>;
+       return <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">Alta Prioridade</span>;
     }
     if (s === 'silver' || s === 'média' || s === 'médio' || s === 'morno') {
-      return <div className="w-3 h-3 rounded-full bg-gray-400" title="Média Prioridade"></div>;
+       return <span className="text-[10px] bg-gray-200 text-gray-800 px-1.5 py-0.5 rounded font-bold">Média Prioridade</span>;
     }
-    return <div className="w-3 h-3 rounded-full bg-slate-300" title="Baixa Prioridade"></div>;
+    return <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">Baixa Prioridade</span>;
   };
 
-  if (loading) return <div className="p-8 text-center">Carregando CRM...</div>;
+  if (loading) return <div className="p-8 text-center text-gray-500">Carregando CRM...</div>;
 
   return (
     <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM Captação</h1>
-          <p className="text-gray-500 dark:text-gray-400">Acompanhe e gerencie as negociações de propriedades.</p>
+          <p className="text-gray-500 dark:text-gray-400">Arraste os cartões para avançar na prospecção.</p>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
             type="text" 
-            placeholder="Buscar leads..." 
+            placeholder="Buscar proprietário ou cidade..." 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 text-sm"
@@ -109,76 +116,83 @@ export const CRM: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto pb-4">
-        <div className="flex gap-4 h-full min-w-max">
+      <div className="flex-1 overflow-x-auto pb-4 custom-scrollbar">
+        <div className="flex gap-4 h-full min-w-max items-start">
           {COLUMNS.map(col => {
-            const colLeads = filteredLeads.filter(l => (l.status || 'novo') === col.id);
+            const colLeads = filteredLeads.filter(l => (l.coluna || 'novo_lead') === col.id);
             return (
               <div 
                 key={col.id} 
-                className="w-[320px] bg-gray-100 dark:bg-gray-800/50 rounded-xl p-4 flex flex-col shrink-0"
+                className="w-[320px] bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex flex-col shrink-0 max-h-full"
                 onDrop={e => handleDrop(e, col.id)}
                 onDragOver={handleDragOver}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-700 dark:text-gray-300">{col.title}</h3>
-                  <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs px-2 py-1 rounded-full font-bold">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 text-sm tracking-wide uppercase">{col.title}</h3>
+                  <span className="bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded-full font-bold shadow-sm border border-gray-200 dark:border-gray-600">
                     {colLeads.length}
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4 custom-scrollbar">
-                  {colLeads.map(lead => (
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-2 custom-scrollbar">
+                  {colLeads.map(lead => {
+                    const owner = lead.proprietarios_detectados || {};
+                    const propertyTitle = owner.bairro ? `${owner.bairro} - ${owner.cidade}` : owner.cidade || 'Imóvel sem localização';
+                    const interactions = lead.interacoes_proprietario || [];
+                    const lastInteraction = interactions.length > 0 ? interactions[interactions.length - 1] : null;
+
+                    return (
                     <div 
                       key={lead.id}
                       draggable
                       onDragStart={e => handleDragStart(e, lead.id)}
                       className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow cursor-grab active:cursor-grabbing"
                     >
-                      <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
                          <div className="flex-1">
-                            <h4 className="font-bold text-gray-900 dark:text-white text-sm line-clamp-2 leading-tight mb-1" title={lead.property_title}>
-                              {lead.property_title}
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm line-clamp-1 leading-tight mb-0.5" title={owner.nome}>
+                              {owner.nome || 'Sem Nome'}
                             </h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{lead.owner_name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{propertyTitle}</p>
                          </div>
-                         <ScoreBadge score={lead.score} />
                       </div>
 
-                      <div className="flex gap-1 mb-3">
-                         {lead.whatsapp && (
+                      <div className="mb-3">
+                         <ScoreBadge score={owner.score} />
+                      </div>
+
+                      <div className="flex gap-1.5 mb-3">
+                         {owner.whatsapp && (
                            <button 
-                             onClick={() => window.open(`https://wa.me/55${lead.whatsapp.replace(/\D/g, '')}`, '_blank')}
-                             className="p-1.5 bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 rounded transition-colors"
-                             title="WhatsApp"
+                             onClick={() => window.open(`https://wa.me/55${owner.whatsapp.replace(/\D/g, '')}`, '_blank')}
+                             className="flex flex-1 items-center justify-center gap-1.5 p-1.5 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 rounded-lg transition-colors font-medium text-xs border border-green-200 dark:border-green-800"
                            >
-                             <MessageCircle size={16} />
+                             <MessageCircle size={14} /> Msg
                            </button>
                          )}
-                         {lead.phone && !lead.whatsapp && (
+                         {owner.telefone && !owner.whatsapp && (
                            <button 
-                             className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded transition-colors"
-                             title="Telefone"
+                             className="flex flex-1 items-center justify-center gap-1.5 p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-lg transition-colors font-medium text-xs border border-blue-200 dark:border-blue-800"
                            >
-                             <Phone size={16} />
+                             <Phone size={14} /> Ligar
                            </button>
                          )}
-                         {lead.original_url && (
+                         {owner.url_origem && (
                            <button 
-                             onClick={() => window.open(lead.original_url, '_blank')}
-                             className="p-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded transition-colors"
-                             title="Acessar anúncio"
+                             onClick={() => window.open(owner.url_origem, '_blank')}
+                             className="flex flex-1 items-center justify-center gap-1.5 p-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium text-xs border border-gray-200 dark:border-gray-600"
                            >
-                             <ExternalLink size={16} />
+                             <ExternalLink size={14} /> Anúncio
                            </button>
                          )}
                       </div>
 
                       {editingNotes === lead.id ? (
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-3 space-y-2">
                            <textarea 
                              className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                             rows={3}
+                             rows={2}
+                             placeholder="Ex: Ligação realizada, visita confirmada..."
                              value={notesText}
                              onChange={e => setNotesText(e.target.value)}
                              autoFocus
@@ -189,18 +203,26 @@ export const CRM: React.FC = () => {
                            </div>
                         </div>
                       ) : (
-                        <div 
-                          className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-start gap-2 cursor-pointer group"
-                          onClick={() => { setEditingNotes(lead.id); setNotesText(lead.notes || ''); }}
-                        >
-                          <AlignLeft size={14} className="text-gray-400 mt-0.5 group-hover:text-blue-500" />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-                            {lead.notes || 'Adicionar observação...'}
-                          </p>
+                        <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+                            <div className="flex items-center justify-between mb-1.5 cursor-pointer group" onClick={() => { setEditingNotes(lead.id); setNotesText(''); }}>
+                               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 group-hover:text-blue-500 transition-colors flex items-center gap-1">
+                                  <History size={10} /> Histórico ({interactions.length})
+                               </span>
+                               <span className="text-[10px] text-blue-500 hover:text-blue-600 font-medium">+ Add</span>
+                            </div>
+                            
+                            {lastInteraction ? (
+                               <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-100 dark:border-gray-800">
+                                   <span className="font-medium text-gray-400 mr-1">{new Date(lastInteraction.created_at).toLocaleDateString()}:</span>
+                                   {lastInteraction.descricao}
+                               </p>
+                            ) : (
+                               <p className="text-xs text-gray-400 italic">Sem observações ainda.</p>
+                            )}
                         </div>
                       )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             );
